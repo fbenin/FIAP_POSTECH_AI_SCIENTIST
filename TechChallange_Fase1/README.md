@@ -23,7 +23,8 @@ A base de dados contém informações históricas de pedidos, entregas e intera�
 | `customer_id` | Identificador único do cliente |
 | `order_id` | Identificador único do pedido |
 | `customer_age` | Idade do cliente |
-| `customer_region` | Região geográfica do cliente |
+| `customer_region` | Região geogr
+áfica do cliente |
 | `customer_tenure_months` | Tempo de relacionamento do cliente com a empresa (em meses) |
 | `order_value` | Valor total do pedido |
 | `items_quantity` | Quantidade de itens no pedido |
@@ -84,8 +85,17 @@ TechChallange_Fase1/
 
 ## Como Reproduzir os Resultados
 
-Execute o notebook principal:
-- `tech_challenge_fase1_analysis.ipynb` - Análise completa do projeto
+### Instalação das Dependências
+
+1. Instale as bibliotecas necessárias:
+```bash
+pip install -r requirements.txt
+```
+
+### Execução
+
+2. Execute o notebook principal:
+   - `tech_challenge_fase1_analysis.ipynb` - Análise completa do projeto
 
 O notebook está organizado nas seguintes seções:
 1. **Entendimento do Negócio** - Contextualização do problema e importância do NPS
