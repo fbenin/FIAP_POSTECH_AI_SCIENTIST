@@ -84,46 +84,74 @@ TechChallange_Fase1/
 
 ## Como Reproduzir os Resultados
 
-### Pré-requisitos
+Execute o notebook principal:
+- `tech_challenge_fase1_analysis.ipynb` - Análise completa do projeto
 
-- Python 3.8+
-- Jupyter Notebook ou JupyterLab
-- Bibliotecas necessárias (veja requirements.txt)
-
-### Instalação
-
-1. Clone o repositório:
-```bash
-git clone https://github.com/fbenin/FIAP_POSTECH_AI_SCIENTIST.git
-cd FIAP_POSTECH_AI_SCIENTIST/TechChallange_Fase1
-```
-
-2. Instale as dependências:
-```bash
-pip install -r requirements.txt
-```
-
-3. Execute os notebooks na seguinte ordem:
-   - `01_entendimento_negocio.ipynb` - Análise conceitual do problema
-   - `02_analise_exploratoria.ipynb` - EDA e insights
-   - `03_modelagem_preditiva.ipynb` - Construção do modelo (opcional)
+O notebook está organizado nas seguintes seções:
+1. **Entendimento do Negócio** - Contextualização do problema e importância do NPS
+2. **Definição da Target** - Justificativa da escolha do NPS e riscos associados
+3. **Análise Exploratória (EDA)** - Análise detalhada dos dados com visualizações
+4. **Modelagem Preditiva** - Construção e avaliação de modelos de classificação (opcional)
+5. **Conclusões e Recomendações** - Insights e próximos passos
 
 ## Principais Insights
 
-[A ser preenchido após a análise exploratória]
+### Fatores Críticos Identificados:
+- **Atraso na entrega** é o principal driver de insatisfação
+- **Múltiplos contatos com atendimento** indicam problemas sérios na experiência
+- **Reclamações** têm impacto devastador no NPS
+
+### Análise de Detratores vs Promotores:
+- Detratores têm em média **mais dias de atraso** nas entregas
+- Promotores recompram até **5x mais** que detratores
+- Existe um threshold claro de atraso que degrada drasticamente o NPS
+
+### Variação Regional:
+- Diferentes regiões apresentam variações significativas no NPS
+- Sugere necessidade de ajustes logísticos específicos por região
 
 ## Recomendações para o Negócio
 
-[A ser preenchido após a análise]
+### Para Logística:
+- Investir em rastreamento preciso e comunicação proativa
+- Criar SLAs diferenciados por região
+- Reduzir tentativas de entrega através de melhor planejamento
+
+### Para Atendimento:
+- Implementar sistema de alerta de clientes em risco
+- Treinamento focado em resolução no primeiro contato
+- Priorizar casos com múltiplas reclamações
+
+### Para Produto/Marketing:
+- Segmentar comunicações por perfil de NPS previsto
+- Criar programas de fidelidade para promotores
+- Ações de recuperação direcionadas para detratores
+
+### Modelo Preditivo:
+- Implementar pipeline de predição para ação proativa
+- Sistema de alertas para clientes com alto risco de insatisfação
+- Priorização inteligente de atendimento baseada em predição
 
 ## Limitações e Próximos Passos
 
-[A ser preenchido durante o desenvolvimento]
+### Limitações:
+- NPS é uma métrica retrospectiva - coletada após a jornada completa
+- Possível viés de resposta (clientes extremos tendem a responder mais)
+- Correlação não implica causalidade - necessário validar insights com testes
+
+### Próximos Passos:
+1. Validar modelo preditivo com dados mais recentes
+2. Implementar pipeline de predição em produção
+3. Realizar testes A/B para validar intervenções propostas
+4. Expandir análise com dados de comentários (NLP)
+5. Monitorar ROI das ações preventivas implementadas
 
 ## Autores
 
-Equipe Tech Challenge - FIAP Pós-Graduação AI Scientist
+- Fernanda Benin
+- Luccas Marques
+- Diego Santin
+- Henrique Toriello
+- Nicolas Stumpf
 
-## Licença
-
-Este projeto é desenvolvido para fins acadêmicos como parte do programa de Pós-Graduação da FIAP.
+**Equipe Tech Challenge - FIAP Pós-Graduação AI Scientist**
