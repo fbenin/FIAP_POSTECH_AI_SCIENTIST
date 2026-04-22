@@ -23,8 +23,7 @@ A base de dados contém informações históricas de pedidos, entregas e intera�
 | `customer_id` | Identificador único do cliente |
 | `order_id` | Identificador único do pedido |
 | `customer_age` | Idade do cliente |
-| `customer_region` | Região geogr
-áfica do cliente |
+| `customer_region` | Região geográfica do cliente |
 | `customer_tenure_months` | Tempo de relacionamento do cliente com a empresa (em meses) |
 | `order_value` | Valor total do pedido |
 | `items_quantity` | Quantidade de itens no pedido |
