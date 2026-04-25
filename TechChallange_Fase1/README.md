@@ -19,6 +19,16 @@ Por exemplo reduzir o índice de churn e aumentar o número de promotores da mar
 Todas as áreas da empresa podem se beneficiar dos Insights do NPS e aumentar a satisfação do cliente. 
 A questão é traduzir os dados para as metas de negócio, trazendo insights valiosos para cada área poder tomar decisões.
 
+** Como o NPS impacta:
+
+- Recompra: criando promotores da marca que aumentam a recompra.
+
+- Boca a boca: é um marketing orgânico, promotores satisfeitos com a marca divulgando-a.
+
+- Market share em e-commerce: ajuda a monitorar a experiância da compra, para manter a retenção de clientes.
+
+
+
 ## Descrição da Base de Dados
 
 A base de dados contém informações históricas de pedidos, entregas e interações com o atendimento ao cliente.
