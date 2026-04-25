@@ -12,6 +12,10 @@ Com o crescimento acelerado do e-commerce nacional, a empresa passou a lidar com
 
 **Problema de Negócio:** Quais fatores operacionais realmente influenciam a satisfação do cliente e como a empresa pode agir de forma proativa para melhorar a experiência antes mesmo da aplicação da pesquisa de NPS?
 
+**Por que o NPS é importante para um e-commerce?** Através do NPS é possível identificar a satisfação do cliente e ter análise preditiva relacionada as metas de negócio.
+Por exemplo reduzir o índice de churn e aumentar o número de promotores da marca
+
+
 ## Descrição da Base de Dados
 
 A base de dados contém informações históricas de pedidos, entregas e interações com o atendimento ao cliente.
