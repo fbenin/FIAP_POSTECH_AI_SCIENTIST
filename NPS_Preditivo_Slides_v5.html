@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NPS Preditivo — Tech Challenge Fase 1 v3</title>
+<title>NPS Preditivo — Tech Challenge Fase 1 v5</title>
 <style>
   :root {
     --dark-bg:   #1A1A2E;
@@ -79,25 +79,11 @@
   }
 
   /* ── Common helpers ── */
-  .accent-bar-bottom {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2.6%;
-    background: var(--accent);
-  }
   .accent-bar-top {
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2%;
     background: var(--accent);
-  }
-  .slide-num {
-    position: absolute;
-    bottom: 3.5%;
-    right: 1%;
-    color: var(--light-gray);
-    font-size: .65em;
-    opacity: .7;
   }
 
   /* Header band */
@@ -181,7 +167,6 @@
   #s2-cards ul    { list-style: none; padding: 0; }
   #s2-cards li    { color: var(--white); font-size: .98em; padding: .6% 0; padding-left: .5%; }
   #s2-cards li::before { content: "•  "; color: var(--white); }
-  #s2-foot { padding: .8% 3.8%; color: var(--light-gray); font-size: .82em; font-style: italic; }
 
   /* ════ SLIDE 3 — Pergunta Central ════ */
   #s3-inner {
@@ -247,7 +232,6 @@
   #s4-aside .big    { color: var(--red); font-weight: 700; font-size: 3.4em; line-height: 1; }
   #s4-aside .of10   { color: var(--light-gray); font-size: .9em; }
   #s4-aside .mkt    { color: var(--light-gray); font-size: .75em; text-align: center; line-height: 1.4; }
-  #s4-diag { padding: .8% 3.8%; color: var(--orange); font-size: .88em; font-weight: 700; font-style: italic; }
 
   /* ════ SLIDE 5 — O Que os Dados Revelam ════ */
   #s5-inner {
@@ -410,7 +394,6 @@
   .limit-text   { flex: 1; color: var(--white); font-size: .9em; }
   .limit-vbar   { width: 2px; background: var(--light-gray); opacity: .5; align-self: stretch; }
   .limit-action { flex: 1; color: var(--accent); font-size: .9em; }
-  #s10-foot { padding: .8% 3.8%; color: var(--orange); font-size: .85em; font-weight: 700; font-style: italic; }
 
   /* ════ SLIDE 10 — Conclusão ════ */
   #s12-inner {
@@ -452,7 +435,6 @@
 <div class="slide-wrapper active" id="slide-1">
 <div class="slide">
   <div class="accent-bar-top"></div>
-  <div class="accent-bar-bottom"></div>
   <div id="s1">
     <div class="s1-title">NPS PREDITIVO</div>
     <div class="s1-sub">Antecipando a Satisfação do Cliente</div>
@@ -460,7 +442,6 @@
     <div class="s1-case">Case E-commerce &nbsp;|&nbsp; Tech Challenge Fase 1</div>
     <div class="s1-fiap">Pós-Graduação AI Scientist — FIAP</div>
   </div>
-  <div class="slide-num">1</div>
 </div>
 </div>
 
@@ -469,7 +450,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-2">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s2-inner">
     <div class="header-band">
       <h2>O Problema</h2>
@@ -501,9 +481,7 @@
         </div>
       </div>
     </div>
-    <div id="s2-foot">Base analisada: 2.500 pedidos com dados de logística, atendimento e histórico do cliente.</div>
   </div>
-  <div class="slide-num">2</div>
 </div>
 </div>
 
@@ -512,7 +490,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-3">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s2-inner">
     <div class="header-band">
       <h2>A Pergunta Central</h2>
@@ -523,7 +500,6 @@
       </div>
     </div>
   </div>
-  <div class="slide-num">3</div>
 </div>
 </div>
 
@@ -532,7 +508,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-4">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s4-inner">
     <div class="header-band">
       <h2>Retrato Atual: Onde Estamos?</h2>
@@ -574,9 +549,7 @@
         <div class="mkt">Mercado saudável:<br>40–50 pts (NPS index)</div>
       </div>
     </div>
-    <div id="s4-diag">Diagnóstico: temos uma lacuna significativa a fechar.</div>
   </div>
-  <div class="slide-num">4</div>
 </div>
 </div>
 
@@ -585,7 +558,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-5">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s5-inner">
     <div class="header-band">
       <h2>O Que os Dados Revelam?</h2>
@@ -620,9 +592,7 @@
         </div>
       </div>
     </div>
-    <div class="footer-bar">Reclamações são o principal sinal de alerta — mais impactantes que o atraso isolado. Mas há algo mais por trás dos contatos com atendimento...</div>
   </div>
-  <div class="slide-num">5</div>
 </div>
 </div>
 
@@ -631,7 +601,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-6">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s6-inner">
     <div class="header-band">
       <h2>O Ponto de Ruptura</h2>
@@ -673,9 +642,7 @@
         <div class="col-footer">QUEDA DE 60% no NPS com 3+ reclamações</div>
       </div>
     </div>
-    <div class="footer-bar">Se o pedido acumula atraso + reclamações abertas, a probabilidade de detrator é altíssima — e ainda dá tempo de agir.</div>
   </div>
-  <div class="slide-num">6</div>
 </div>
 </div>
 
@@ -684,7 +651,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-7">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s7-inner">
     <div class="header-band">
       <h2>O Impacto no Negócio</h2>
@@ -721,11 +687,7 @@
         <div class="aside-item" style="color:var(--orange)">• Converter um detrator em passivo recupera 38% da recompra</div>
       </div>
     </div>
-    <div style="padding:.8% 3.8%;color:var(--accent);font-size:.88em;font-weight:700;font-style:italic">
-      Cada cliente satisfeito é receita recorrente e canal gratuito de aquisição.
-    </div>
   </div>
-  <div class="slide-num">7</div>
 </div>
 </div>
 
@@ -734,7 +696,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-8">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s9-inner">
     <div class="header-band">
       <h2>Recomendações para o Negócio</h2>
@@ -782,7 +743,6 @@
       </div>
     </div>
   </div>
-  <div class="slide-num">8</div>
 </div>
 </div>
 
@@ -791,7 +751,6 @@
 ═══════════════════════════════════════════ -->
 <div class="slide-wrapper" id="slide-9">
 <div class="slide">
-  <div class="accent-bar-bottom"></div>
   <div id="s10-inner">
     <div class="header-band">
       <h2>Limitações e Cuidados</h2>
@@ -819,9 +778,7 @@
         <div class="limit-action">→&nbsp; Testar ações com grupos de controle (A/B)</div>
       </div>
     </div>
-    <div id="s10-foot">Recomendação: usar o modelo como ferramenta de triagem e priorização — não como decisão final automática.</div>
   </div>
-  <div class="slide-num">9</div>
 </div>
 </div>
 
@@ -831,7 +788,6 @@
 <div class="slide-wrapper" id="slide-10">
 <div class="slide">
   <div class="accent-bar-top"></div>
-  <div class="accent-bar-bottom"></div>
   <div id="s12-inner">
     <div id="s12-quote-block">
       <div class="s12-line">A insatisfação do cliente não é um acidente —</div>
@@ -848,7 +804,6 @@
       <div class="sub">Dúvidas e próximos passos: vamos continuar a conversa.</div>
     </div>
   </div>
-  <div class="slide-num">10</div>
 </div>
 </div>
 
