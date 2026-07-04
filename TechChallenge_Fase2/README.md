@@ -85,4 +85,10 @@ A pipeline segue a **Arquitetura Medalhão** com três camadas:
 
 ## Equipe
 
-> _A ser preenchido_
+- Fernanda Benin
+- Luccas Marques
+- Diego Santin
+- Henrique Toriello
+- Nicolas Stumpf
+
+**Equipe Tech Challenge - FIAP Pós-Graduação AI Scientist**
