@@ -388,6 +388,6 @@ Uso:      projetar trajetória de cada UF até 2030
 
 ## Fonte dos Dados
 
-- **INEP — Avaliação de Alfabetização:** [Base dos Dados — Indicador Criança Alfabetizada](https://basedosdados.org/dataset/br-inep-indicador-crianca-alfabetizada)
+- **INEP — Avaliação de Alfabetização:** [Base dos Dados — Indicador Criança Alfabetizada](https://basedosdados.org/dataset/073a39d4-89cf-4068-b1e8-34ed0d9c0b72?table=e1de7a6a-5038-4e81-89f0-a15f2cc12c9b)
 - **Ponto de corte:** 743 pontos na escala SAEB (definido pela Pesquisa Alfabetiza Brasil, 2023)
 - **Meta nacional:** 80% das crianças alfabetizadas ao final do 2º ano do EF até 2030
