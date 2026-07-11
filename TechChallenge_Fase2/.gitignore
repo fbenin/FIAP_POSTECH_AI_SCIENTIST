@@ -1,0 +1,21 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+*.log
+airflow/logs/
+airflow/plugins/
+data/raw/
+# Parquets gerados (dados, não código)
+*.parquet
+# Relatórios de qualidade JSON (gerados em runtime)
+docs/quality_reports/*.json
+# Imagens geradas pelos notebooks
+data/gold/*.png

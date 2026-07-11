@@ -1,0 +1,8 @@
+basedosdados==1.6.4
+pandas==2.1.4
+pyarrow==14.0.2
+boto3==1.34.0
+python-dotenv==1.0.0
+great-expectations==0.18.8
+apache-airflow==2.8.0
+requests==2.31.0
