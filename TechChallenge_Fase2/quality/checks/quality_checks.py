@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 S3_BUCKET = os.getenv("S3_BUCKET_NAME", "tech-challenge-alfabetizacao")
 USE_AWS   = os.getenv("USE_AWS", "false").lower() == "true"
-LOCAL_ROOT = Path(__file__).parent.parent / "data"
+LOCAL_ROOT = Path(__file__).parent.parent.parent / "data"
 
 s3 = boto3.client("s3") if USE_AWS else None
 

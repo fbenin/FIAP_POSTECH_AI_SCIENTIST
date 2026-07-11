@@ -13,8 +13,10 @@ env/
 airflow/logs/
 airflow/plugins/
 data/raw/
-# Parquets gerados (dados, não código)
+# Parquets gerados em runtime (dados intermediários)
 *.parquet
+# Exceto amostras sintéticas de teste (necessárias para rodar sem AWS)
+!data/samples/*.parquet
 # Relatórios de qualidade JSON (gerados em runtime)
 docs/quality_reports/*.json
 # Imagens geradas pelos notebooks
