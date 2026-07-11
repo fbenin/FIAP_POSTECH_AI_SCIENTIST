@@ -386,26 +386,8 @@ Uso:      projetar trajetória de cada UF até 2030
 
 ---
 
-## Git Workflow
-
-```
-main          ← produção estável
-develop       ← integração
-feature/*     ← desenvolvimento de funcionalidades
-```
-
-Branches criadas:
-- `feature/bronze-ingestion`
-- `feature/silver-transformation`
-- `feature/gold-analytics`
-- `feature/streaming`
-
-PRs de `feature/*` → `develop` → `main` com revisão e comentários justificando alterações.
-
----
-
 ## Fonte dos Dados
 
-- **INEP — Avaliação de Alfabetização:** [Base dos Dados — Indicador Criança Alfabetizada](https://basedosdados.org/dataset/br_inep_indicador_crianca_alfabetizada)
+- **INEP — Avaliação de Alfabetização:** [Base dos Dados — Indicador Criança Alfabetizada](https://basedosdados.org/dataset/br-inep-indicador-crianca-alfabetizada)
 - **Ponto de corte:** 743 pontos na escala SAEB (definido pela Pesquisa Alfabetiza Brasil, 2023)
 - **Meta nacional:** 80% das crianças alfabetizadas ao final do 2º ano do EF até 2030
