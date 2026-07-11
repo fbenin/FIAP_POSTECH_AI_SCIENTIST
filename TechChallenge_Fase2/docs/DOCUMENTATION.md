@@ -1,0 +1,553 @@
+# TECH CHALLENGE FASE 2 — Documentação Técnica
+
+## O que é este projeto
+
+Repositório criado para o **Tech Challenge Fase 2 do curso IAST/FIAP (PÓS TECH)**.
+O objetivo é construir uma pipeline híbrida de dados (Batch + Streaming) para analisar
+o **Indicador Criança Alfabetizada** do INEP, usando a **Arquitetura Medalhão** na AWS.
+
+---
+
+## Estrutura de Pastas
+
+```
+tech-challenge-fase2/
+│
+├── notebooks/                          ← PIPELINE PRINCIPAL (Jupyter — executar nesta ordem)
+│   ├── 01_setup_e_ingestao_bronze.ipynb
+│   ├── 02_silver_transformation.ipynb
+│   ├── 03_gold_analytics.ipynb
+│   ├── 04_streaming_simulation.ipynb
+│   └── 05_quality_checks.ipynb
+│
+├── pipelines/                          ← Scripts Python equivalentes (para Glue/produção)
+│   ├── batch/
+│   │   ├── bronze/ingest_bronze.py
+│   │   ├── silver/transform_silver.py
+│   │   └── gold/build_gold.py
+│   └── streaming/
+│       ├── producer.py
+│       └── consumer.py
+│
+├── quality/
+│   └── quality_checks.py               ← Suite de validações por camada
+│
+├── orchestration/dags/
+│   └── pipeline_alfabetizacao.py       ← DAG Airflow
+│
+├── infra/
+│   └── setup_aws.py                    ← Cria bucket S3 + Glue DB + Athena workgroup
+│
+├── data/
+│   ├── bronze/                         ← Bronze local (gerado pelos notebooks)
+│   ├── silver/                         ← Silver local (gerado pelos notebooks)
+│   ├── gold/                           ← Gold local (gerado pelos notebooks)
+│   └── samples/
+│       └── generate_samples.py         ← Converte CSVs INEP reais → Parquet
+│
+├── docs/
+│   ├── DOCUMENTATION.md                ← Este arquivo
+│   ├── athena_queries.sql              ← 5 queries SQL prontas para Athena
+│   └── quality_reports/               ← Relatórios JSON gerados pelo notebook 05
+│
+├── docker-compose.yml                  ← Airflow local
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Dados INEP — Fonte Real
+
+Os 5 arquivos CSV do INEP estão em:
+```
+~/Desktop/FIAP - Ciências de Dados com IA/Tech Challenges/Fase 2/Dados INEP/
+```
+
+| Arquivo | Linhas | Granularidade |
+|---|---|---|
+| `br_inep_avaliacao_alfabetizacao_meta_alfabetizacao_brasil.csv` | 3 | Nacional |
+| `br_inep_avaliacao_alfabetizacao_meta_alfabetizacao_uf.csv` | 54 | Estadual |
+| `br_inep_avaliacao_alfabetizacao_meta_alfabetizacao_municipio.csv` | 10.704 | Municipal |
+| `br_inep_avaliacao_alfabetizacao_uf.csv` | 145 | Estadual |
+| `br_inep_avaliacao_alfabetizacao_municipio.csv` | 23.995 | Municipal |
+
+**Colunas principais:**
+- `ano` — ano de referência (2023, 2024…)
+- `sigla_uf` — sigla do estado (ex: "SP")
+- `id_municipio` — código IBGE de 7 dígitos
+- `taxa_alfabetizacao` — % crianças alfabetizadas no 2º ano EF
+- `meta_alfabetizacao_2024` … `meta_alfabetizacao_2030` — trajetória de metas
+- `rede` — tipo de rede escolar (ex: "Pública", "Municipal")
+- `serie` — série avaliada (sempre 2 = 2º ano EF)
+- `media_portugues` — proficiência média na escala SAEB (743 = ponto de corte)
+
+---
+
+## Arquivo por arquivo
+
+---
+
+### `notebooks/01_setup_e_ingestao_bronze.ipynb`
+
+**O que faz:** Configura a infraestrutura AWS e realiza a ingestão da camada Bronze.
+
+**Seções:**
+1. Instalação de dependências e imports
+2. Configuração de variáveis (bucket S3, região, prefixos)
+3. Funções de setup AWS: `create_bucket()`, `set_lifecycle_policy()`, `create_glue_database()`, `create_athena_workgroup()`
+4. Carregamento dos 5 CSVs INEP com adição de metadados: `_fonte`, `_arquivo_origem`, `_data_ingestao`
+5. EDA básica: schema, nulos, valores únicos por dataset
+6. Upload para S3 ou salvamento local como Parquet
+7. Verificação final com contagem de linhas por tabela
+
+**Por que metadados no Bronze:**
+Seguindo o padrão das aulas de Arquitetura de Big Data (notebook `02_carga_camada_bronze.py` da professora),
+cada registro Bronze recebe `_data_ingestao` e `_fonte` para rastreabilidade e reprocessamento.
+
+**Particionamento Bronze:**
+```
+s3://bucket/bronze/<tabela>/run_ts=20250710T120000/<tabela>.parquet
+```
+Permite reprocessar uma janela específica sem re-ingerir todo o histórico.
+
+**FinOps aplicado:**
+- S3 Lifecycle: `bronze/` migra para `STANDARD_IA` após 90 dias (45% mais barato)
+- Athena workgroup com limite de 1 GB por query
+
+---
+
+### `notebooks/02_silver_transformation.ipynb`
+
+**O que faz:** Limpeza, padronização e integração das 5 bases na camada Silver.
+
+**Transformações por tabela:**
+
+| Tabela | Transformações |
+|---|---|
+| `meta_brasil` | Lowercase, numérico, dedup por `[ano, rede]`, title-case em `rede` |
+| `meta_uf` | + `sigla_uf` upper, drop nulos em `sigla_uf` |
+| `meta_municipio` | + `id_municipio` zfill(7), drop nulos em `[id_municipio, ano]` |
+| `indicador_uf` | Converte `serie` e `rede` para Int64, filtra `taxa` ∈ [0,100] |
+| `indicador_municipio` | + extrai `sigla_uf` dos 2 primeiros dígitos do `id_municipio` via mapa IBGE |
+
+**Integração (JOINs na Silver):**
+```
+indicador_municipio
+  LEFT JOIN meta_municipio   ON [id_municipio, ano, rede]
+  LEFT JOIN meta_uf          ON [sigla_uf, ano, rede]
+  LEFT JOIN meta_brasil      ON [ano, rede]
+```
+
+**Colunas calculadas criadas:**
+- `gap_meta_municipio_2030` = `taxa_alfabetizacao` − `meta_mun_2030`
+- `gap_meta_uf_2030` = `taxa_alfabetizacao` − `meta_uf_2030`
+- `atingiu_meta_uf` = `gap_meta_uf_2030 >= 0` (booleano)
+
+**Particionamento Silver:**
+```
+data/silver/alfabetizacao_municipio/sigla_uf=SP/ano=2023/data.parquet
+```
+Reduz custo Athena em até 90% para queries filtradas por UF ou ano.
+
+---
+
+### `notebooks/03_gold_analytics.ipynb`
+
+**O que faz:** Constrói os 5 datasets analíticos da camada Gold.
+
+| Dataset | Construção | Uso |
+|---|---|---|
+| `indicador_municipio` | Seleciona colunas-chave + adiciona `categoria_risco` (4 faixas de gap) | Dashboard principal, análise por município |
+| `evolucao_temporal_uf` | GroupBy `[ano, sigla_uf]`: média, mediana, desvio, total_municipios | Séries históricas, tendências regionais |
+| `ranking_uf` | GroupBy `sigla_uf` no ano mais recente, ordena por `media_taxa` | Comparativo entre estados |
+| `municipios_risco` | Top 100 municípios com pior `gap_meta_uf_2030` | Priorização de políticas públicas |
+| `comparativo_nacional` | Derrete colunas `meta_2024..2030` em linhas (melt) | Evolução nacional vs trajetória |
+
+**EDA Gold:**
+- Gráfico horizontal: Top 10 e Bottom 10 UFs por taxa de alfabetização
+- Gráfico de linha: taxa realizada vs trajetória de meta nacional
+
+**Feature matrix para ML:**
+```python
+feature_cols = [
+    "taxa_alfabetizacao",      # TARGET
+    "media_portugues",         # proficiência linguística
+    "meta_mun_2030",           # nível de ambição da meta
+    "gap_meta_uf_2030",        # gap atual
+    "proporcao_aluno_nivel_0", # % alunos sem proficiência
+]
+```
+
+---
+
+### `notebooks/04_streaming_simulation.ipynb`
+
+**O que faz:** Simula ingestão de eventos em tempo quase real.
+
+**Por que streaming:**
+Dados educacionais do INEP são anuais (Batch), mas secretarias municipais podem
+enviar atualizações intermediárias. O streaming captura esses eventos entre janelas batch.
+
+**Arquitetura:**
+```
+Producer (Python)  →  fila JSONL  →  Consumer  →  Bronze/streaming/ (Parquet)
+                  [em produção: substituir por Kinesis Data Streams]
+```
+
+**Eventos simulados:**
+- Tipo: `indicador_atualizado`, `meta_revisada`, `medicao_desempenho`, `avaliacao_municipal`
+- Payload: `sigla_uf`, `id_municipio`, `ano`, `serie`, `rede`, `taxa_alfabetizacao`, `media_portugues`
+- Municípios: 10 municípios reais de capitais brasileiras (códigos IBGE corretos)
+
+**Micro-batch:** 10 eventos → flush como Parquet em `bronze/streaming/dt=YYYY-MM-DD/`
+
+**Referência de produção:** O notebook inclui snippets comentados mostrando como substituir
+a fila JSONL por `boto3.client("kinesis").put_record()` / `get_records()`.
+
+**Validações aplicadas:**
+- Nulos em `sigla_uf`, `id_municipio`, `taxa_alfabetizacao`
+- Event IDs duplicados
+- `taxa_alfabetizacao` fora do intervalo [0, 100]
+
+---
+
+### `notebooks/05_quality_checks.ipynb`
+
+**O que faz:** Suite completa de qualidade de dados + monitoramento + FinOps.
+
+**Framework de qualidade:**
+```python
+@dataclass
+class CheckResult:
+    check: str
+    passed: bool
+    detail: str
+    severity: str  # "error" | "warning" | "info"
+
+@dataclass
+class QualityReport:
+    layer: str
+    table: str
+    n_rows: int
+    results: List[CheckResult]
+```
+
+**Checks implementados:**
+| Função | Verifica |
+|---|---|
+| `check_not_empty(df)` | Tabela com pelo menos 1 linha |
+| `check_no_duplicates(df, subset)` | Sem linhas duplicadas nas colunas-chave |
+| `check_no_nulls(df, cols)` | Campos obrigatórios sem nulos |
+| `check_range(df, col, lo, hi)` | Valores dentro do intervalo esperado |
+| `check_ref_integrity(df, fk_col, ref_values)` | Chave estrangeira com referência válida |
+| `check_completeness_ufs(df, col, 27)` | Cobertura dos 27 estados brasileiros |
+
+**Suites por camada:**
+- `suite_bronze()` → valida os 5 arquivos Bronze
+- `suite_silver()` → valida `alfabetizacao_municipio` e `alfabetizacao_uf`
+- `suite_gold()` → valida os 5 datasets Gold
+
+**Saída:**
+- Tabela resumo: status por tabela, contagem de linhas, erros e avisos
+- Arquivo JSON em `docs/quality_reports/quality_report_<timestamp>.json`
+- Exit implícito: se há falhas de `severity="error"`, o resultado é `passed=False`
+
+**Monitoramento operacional:**
+- Tamanho de cada camada em MB
+- Número de arquivos Parquet por camada
+- Lista de alertas de qualidade pendentes
+
+**Análise FinOps:**
+- Estimativa detalhada por serviço AWS
+- Tabela de economias aplicadas (Parquet, particionamento, Airflow local, etc.)
+- Gráfico de breakdown de custo
+
+---
+
+### `pipelines/batch/bronze/ingest_bronze.py`
+
+**O que é:** Versão script Python do notebook 01, para uso em AWS Glue ou cron.
+
+**Diferença do notebook:** Não faz EDA nem exibe tabelas. Focado em execução silenciosa.
+
+**Modo duplo:**
+- `USE_AWS=true` → faz upload para S3 via `boto3`
+- `USE_AWS=false` → salva em `data/bronze/` localmente
+
+**Fallback:** Se `basedosdados` SDK não estiver disponível (sem GCP configurado),
+carrega de `data/samples/` automaticamente.
+
+---
+
+### `pipelines/batch/silver/transform_silver.py`
+
+**O que é:** Versão script Python do notebook 02, refatorada para produção.
+
+**Mudanças em relação à versão original:**
+- Colunas corrigidas para o schema real do INEP (a versão anterior usava `perc_alfabetizados`,
+  `meta`; o schema real usa `taxa_alfabetizacao`, `meta_alfabetizacao_2030`)
+- Extração de `sigla_uf` dos 2 primeiros dígitos do `id_municipio` via mapa IBGE
+  (os arquivos INEP de município não têm coluna `sigla_uf`)
+- Parâmetro `rede` incluído nos JOINs (rede pública ≠ privada têm indicadores distintos)
+- Suporte a modo local e modo AWS controlado por `USE_AWS`
+
+---
+
+### `pipelines/batch/gold/build_gold.py`
+
+**O que é:** Versão script Python do notebook 03.
+
+**Datasets gerados:**
+- `gold/alfabetizacao_municipio/` — indicador + metas + gaps
+- `gold/evolucao_temporal/` — série histórica por UF
+- `gold/ranking_uf/` — ranking por estado no ano mais recente
+
+---
+
+### `pipelines/streaming/producer.py`
+
+**O que é:** Gerador de eventos simulados.
+
+**Configurável via env:**
+- `STREAMING_INTERVAL` — segundos entre eventos (padrão: 2)
+
+**Para substituir por Kinesis em produção:**
+```python
+kinesis.put_record(
+    StreamName="alfabetizacao-indicadores",
+    Data=json.dumps(event).encode(),
+    PartitionKey=event["payload"]["sigla_uf"]
+)
+```
+
+---
+
+### `pipelines/streaming/consumer.py`
+
+**O que é:** Consumidor de eventos com persistência no Bronze.
+
+**Configurável via env:**
+- `STREAMING_FLUSH_EVERY` — eventos por micro-batch (padrão: 10)
+- `STREAMING_POLL_INTERVAL` — segundos entre polls (padrão: 3)
+
+---
+
+### `quality/quality_checks.py`
+
+**O que é:** Versão script Python do notebook 05, sem EDA nem gráficos.
+
+**Integração com Airflow:** retorna `True/False` e lança `ValueError` em caso de falha,
+o que faz a task Airflow marcar como `FAILED` e disparar retry.
+
+---
+
+### `orchestration/dags/pipeline_alfabetizacao.py`
+
+**O que é:** DAG Airflow que orquestra o pipeline completo.
+
+**Grafo de dependências:**
+```
+start → ingest_bronze → transform_silver → quality_check_silver
+      → build_gold → quality_check_gold → end
+```
+
+**Agendamento:** `0 6 * * *` — diário às 6h UTC
+
+**Proteção:** quality checks são bloqueantes — Gold só é construído se Silver passar.
+
+---
+
+### `data/samples/generate_samples.py`
+
+**O que é:** Converte os CSVs reais do INEP em arquivos Parquet para desenvolvimento local.
+
+**Mudança em relação à versão original:**
+A versão anterior gerava dados **sintéticos** (aleatórios). A versão atual lê os
+**CSVs reais do INEP** e os converte para Parquet. Isso garante que os testes locais
+usem os mesmos dados que o pipeline em produção usaria.
+
+**Como usar:**
+```bash
+INEP_DATA_DIR="/caminho/para/Dados INEP" python3 data/samples/generate_samples.py
+```
+
+**Resultado:**
+```
+data/samples/meta_brasil.parquet        (3 linhas)
+data/samples/meta_uf.parquet           (54 linhas)
+data/samples/meta_municipio.parquet    (10.704 linhas)
+data/samples/indicador_uf.parquet      (145 linhas)
+data/samples/indicador_municipio.parquet (23.995 linhas)
+```
+
+---
+
+### `infra/setup_aws.py`
+
+**O que é:** Script de criação da infraestrutura AWS (idempotente — pode ser reexecutado).
+
+**O que cria:**
+1. Bucket S3 com bloqueio de acesso público
+2. Lifecycle policy: `bronze/` → `STANDARD_IA` após 90 dias
+3. Glue Database `alfabetizacao_db`
+4. Athena Workgroup com limite de 1 GB por query e CloudWatch habilitado
+
+**Execute uma vez antes de qualquer pipeline em produção.**
+
+---
+
+### `docs/athena_queries.sql`
+
+**O que é:** 5 queries SQL prontas para executar no Athena contra a camada Gold.
+
+| Query | O que retorna |
+|---|---|
+| 1 | Top 10 municípios por taxa de alfabetização |
+| 2 | Evolução temporal por UF |
+| 3 | Municípios abaixo da meta estadual |
+| 4 | Ranking completo de UFs |
+| 5 | Municípios com maior gap negativo vs meta |
+
+---
+
+## Git Workflow
+
+```
+main         ← código estável, entregável final
+develop      ← integração entre features
+feature/*    ← desenvolvimento de cada funcionalidade
+```
+
+**Branches existentes:**
+- `feature/bronze-ingestion` — notebooks + ingestão Bronze
+- `feature/silver-transformation` — transformação Silver
+- `feature/gold-analytics` — camada Gold
+- `feature/streaming` — producer/consumer
+
+**Fluxo correto:**
+```bash
+git checkout feature/<nome>
+# faz alterações
+git add <arquivos específicos>
+git commit -m "feat: descrição clara do que foi feito"
+git push origin feature/<nome>
+# abre Pull Request: feature/* → develop
+# após merge de todas: develop → main
+```
+
+---
+
+## Como Executar
+
+### Opção 1 — Notebooks (recomendado, sem AWS)
+
+```bash
+pip install -r requirements.txt
+cd notebooks/
+jupyter notebook
+# execute na ordem: 01 → 02 → 03 → 04 → 05
+```
+
+Os notebooks funcionam em modo local sem nenhuma credencial AWS.
+Os dados ficam em `data/bronze/`, `data/silver/`, `data/gold/`.
+
+### Opção 2 — Scripts Python (produção / AWS Glue)
+
+```bash
+# Pré-requisitos
+aws configure
+cp .env.example .env  # preencha com suas credenciais
+
+# Setup (uma vez)
+python3 infra/setup_aws.py
+INEP_DATA_DIR="caminho/Dados INEP" python3 data/samples/generate_samples.py
+
+# Pipeline
+python3 pipelines/batch/bronze/ingest_bronze.py
+python3 pipelines/batch/silver/transform_silver.py
+python3 pipelines/batch/gold/build_gold.py
+python3 quality/quality_checks.py
+```
+
+### Opção 3 — Airflow (orquestração)
+
+```bash
+docker-compose up -d
+# http://localhost:8080  (admin / admin)
+# ative a DAG: pipeline_alfabetizacao
+```
+
+---
+
+## Decisões Arquiteturais
+
+### Por que Parquet e não CSV?
+
+- 60-80% menor em disco → menos custo S3
+- Athena lê apenas as colunas do SELECT → menos bytes escaneados → menor custo
+- Suporte nativo a tipos (Int64, float64, bool) → sem ambiguidade de schema
+
+### Por que particionamento `sigla_uf/ano`?
+
+Athena usa particionamento Hive-style para pular arquivos irrelevantes.
+Uma query `WHERE sigla_uf = 'SP' AND ano = 2023` escaneia apenas 1 partição
+em vez de todas as 54 (27 UFs × 2 anos).
+
+### Por que JOINs na Silver e não na Gold?
+
+- Silver é a "verdade única" — cada análise Gold parte do mesmo dado limpo
+- Mais fácil auditar: se um join estiver errado, corrige na Silver e regenera todas as Gold
+- Reduz duplicação: sem precisar replicar a lógica de join em cada dataset Gold
+
+### Por que Athena e não Redshift?
+
+- Volume dos dados (~35k linhas) não justifica um cluster fixo
+- Athena paga por bytes escaneados: ~$0.25/mês para este projeto
+- Redshift mínimo: ~$182/mês (dc2.large reservado) — custo injustificado
+
+### Por que Airflow local em vez de MWAA?
+
+- MWAA: ~$400/mês mínimo
+- Airflow no Docker: $0 (custo apenas de energia do laptop)
+- Trade-off: sem alta disponibilidade; aceitável para projeto acadêmico
+
+---
+
+## O que falta para produção
+
+### Credenciais AWS
+
+```bash
+aws configure
+# ou configure variáveis no .env:
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION
+```
+
+### Repositório GitHub
+
+```bash
+# após criar o repo em github.com:
+git remote add origin https://github.com/SEU_USERNAME/tech-challenge-fase2.git
+git push -u origin main
+git push origin develop
+git push origin feature/bronze-ingestion
+git push origin feature/silver-transformation
+git push origin feature/gold-analytics
+git push origin feature/streaming
+```
+
+### IAM Role para Glue (console AWS)
+
+1. IAM → Roles → Create role → AWS service → Glue
+2. Policies: `AWSGlueServiceRole` + `AmazonS3FullAccess`
+3. Nome: `GlueServiceRole`
+4. Atualizar `GLUE_IAM_ROLE` no `.env`
+
+### Melhorias opcionais
+
+- [ ] Glue Crawlers para atualização automática do schema no Catalog
+- [ ] CloudWatch Alarms para falhas de ingestão
+- [ ] Integração de fontes externas: Censo Escolar, Atlas IDH, FUNDEB
+- [ ] Modelo preditivo de alfabetização (scikit-learn ou SageMaker)
+- [ ] Dashboard AWS QuickSight conectado ao Athena Gold
