@@ -42,14 +42,14 @@ with DAG(
         run()
 
     def task_quality_silver(**ctx):
-        from quality.checks.quality_checks import check_silver_alfabetizacao
+        from quality.quality_checks import check_silver_alfabetizacao
         report = check_silver_alfabetizacao()
         if not report.passed:
             raise ValueError(f"Quality check Silver falhou: {report.summary()}")
 
     def task_quality_gold(**ctx):
-        from quality.checks.quality_checks import check_gold_indicador_municipio, check_gold_evolucao_temporal
-        for fn in [check_gold_indicador_municipio, check_gold_evolucao_temporal]:
+        from quality.quality_checks import check_gold_alfabetizacao_municipio, check_gold_evolucao_temporal
+        for fn in [check_gold_alfabetizacao_municipio, check_gold_evolucao_temporal]:
             report = fn()
             if not report.passed:
                 raise ValueError(f"Quality check Gold falhou: {report.summary()}")
