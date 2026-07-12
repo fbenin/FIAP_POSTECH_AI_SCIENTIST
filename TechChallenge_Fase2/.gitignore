@@ -21,3 +21,4 @@ data/raw/
 docs/quality_reports/*.json
 # Imagens geradas pelos notebooks
 data/gold/*.png
+bq-results*.csv
