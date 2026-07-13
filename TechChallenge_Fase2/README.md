@@ -154,16 +154,16 @@ tech-challenge-fase2/
 │   ├── batch/
 │   │   ├── bronze/ingest_bronze.py        # Lê CSVs de S3 raw/ → grava S3 bronze/
 │   │   ├── silver/transform_silver.py     # Transformações Silver
-│   │   └── gold/build_gold.py             # Construção Gold
-│   └── streaming/
-│       ├── producer.py                    # Gerador de eventos
-│       └── consumer.py                    # Consumidor + persistência Bronze
+│   │   └── gold/build_gold.py             # Construção Gold (6 datasets)
+│   ├── streaming/
+│   │   ├── producer.py                    # Gerador de eventos
+│   │   └── consumer.py                    # Consumidor + persistência Bronze
+│   └── orchestration/
+│       └── dags/pipeline_alfabetizacao.py # DAG Airflow (referência — substituído por Lambda)
 │
 ├── quality/
-│   └── quality_checks.py                  # Suite de checks por camada
-│
-├── orchestration/
-│   └── dags/pipeline_alfabetizacao.py     # DAG Airflow (referência — substituído por Lambda)
+│   └── checks/
+│       └── quality_checks.py              # Suite de checks por camada
 │
 ├── infra/
 │   ├── setup_aws.py                       # Cria S3 + Glue DB + Athena workgroup
@@ -176,7 +176,13 @@ tech-challenge-fase2/
 │   ├── silver/                            # Silver local (gerado pelos notebooks)
 │   ├── gold/                              # Gold local (gerado pelos notebooks)
 │   └── samples/
-│       └── generate_samples.py            # Gera amostras dos CSVs INEP reais
+│       ├── generate_samples.py            # Converte CSVs INEP → Parquet local
+│       ├── download_saeb_sample.py        # Baixa amostra dos microdados SAEB
+│       └── create_synthetic_samples.py    # Gera dados sintéticos para testes
+│
+├── monitoring/
+│   ├── alerts/                            # Configurações de alertas CloudWatch
+│   └── dashboards/                        # Configurações de dashboards
 │
 ├── docs/
 │   ├── athena_queries.sql                 # Queries SQL prontas para Athena
@@ -226,7 +232,8 @@ jupyter notebook
 ```bash
 # 1. Configure variáveis de ambiente
 cp .env.example .env
-# edite .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# edite .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, USE_AWS=true
+# atenção: atualize GLUE_IAM_ROLE com o ARN da sua conta AWS
 
 # 2. Setup AWS (criar bucket, Glue DB, Athena workgroup) — apenas uma vez
 python infra/setup_aws.py
@@ -235,7 +242,7 @@ python infra/setup_aws.py
 python pipelines/batch/bronze/ingest_bronze.py   # lê raw/ → grava bronze/
 python pipelines/batch/silver/transform_silver.py
 python pipelines/batch/gold/build_gold.py
-python quality/quality_checks.py
+python quality/checks/quality_checks.py
 ```
 
 ### Opção 3: Carga Automática (Lambda + EventBridge — recomendado para produção)
@@ -278,8 +285,12 @@ S3_BRONZE_PREFIX=bronze
 S3_SILVER_PREFIX=silver
 S3_GOLD_PREFIX=gold
 
+# Controle de execução
+USE_AWS=true                        # true = lê/grava S3; false = modo local
+
 # Glue / Athena
 GLUE_DATABASE=alfabetizacao_db
+GLUE_IAM_ROLE=arn:aws:iam::<sua-conta>:role/GlueServiceRole   # substitua pelo ARN da sua conta
 ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao-01/athena-results/
 ```
 

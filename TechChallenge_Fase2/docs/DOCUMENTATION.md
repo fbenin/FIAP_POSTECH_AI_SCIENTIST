@@ -25,16 +25,16 @@ tech-challenge-fase2/
 │   ├── batch/
 │   │   ├── bronze/ingest_bronze.py     ← lê s3://bucket/raw/ → grava s3://bucket/bronze/
 │   │   ├── silver/transform_silver.py
-│   │   └── gold/build_gold.py
-│   └── streaming/
-│       ├── producer.py
-│       └── consumer.py
+│   │   └── gold/build_gold.py          ← gera 6 datasets analíticos
+│   ├── streaming/
+│   │   ├── producer.py
+│   │   └── consumer.py
+│   └── orchestration/dags/
+│       └── pipeline_alfabetizacao.py   ← DAG Airflow (referência — substituído por Lambda)
 │
 ├── quality/
-│   └── quality_checks.py               ← Suite de validações por camada
-│
-├── orchestration/dags/
-│   └── pipeline_alfabetizacao.py       ← DAG Airflow (referência — substituído por Lambda)
+│   └── checks/
+│       └── quality_checks.py           ← Suite de validações por camada
 │
 ├── infra/
 │   ├── setup_aws.py                    ← Cria bucket S3 + Glue DB + Athena workgroup
@@ -42,12 +42,18 @@ tech-challenge-fase2/
 │   └── lambda/
 │       └── handler.py                  ← Handler Lambda: Bronze→Silver→Gold→Quality
 │
+├── monitoring/
+│   ├── alerts/                         ← Configurações de alertas CloudWatch
+│   └── dashboards/                     ← Configurações de dashboards
+│
 ├── data/
 │   ├── bronze/                         ← Bronze local (gerado pelos notebooks)
 │   ├── silver/                         ← Silver local (gerado pelos notebooks)
 │   ├── gold/                           ← Gold local (gerado pelos notebooks)
 │   └── samples/
-│       └── generate_samples.py         ← Converte CSVs INEP reais → Parquet
+│       ├── generate_samples.py         ← Converte CSVs INEP reais → Parquet
+│       ├── download_saeb_sample.py     ← Baixa amostra dos microdados SAEB
+│       └── create_synthetic_samples.py ← Gera dados sintéticos para testes
 │
 ├── docs/
 │   ├── DOCUMENTATION.md                ← Este arquivo
@@ -140,15 +146,16 @@ Permite reprocessar uma janela específica sem re-ingerir todo o histórico.
 | `meta_uf` | + `sigla_uf` upper, drop nulos em `sigla_uf` |
 | `meta_municipio` | + `id_municipio` zfill(7), drop nulos em `[id_municipio, ano]` |
 | `indicador_uf` | Converte `serie` e `rede` para Int64, filtra `taxa` ∈ [0,100] |
-| `indicador_municipio` | + extrai `sigla_uf` dos 2 primeiros dígitos do `id_municipio` via mapa IBGE |
+| `indicador_municipio` | Converte `serie` e `rede` para Int64, filtra `taxa` ∈ [0,100], extrai `sigla_uf` dos 2 primeiros dígitos do `id_municipio` via mapa IBGE |
 
 **Integração (JOINs na Silver):**
 ```
 indicador_municipio
-  LEFT JOIN meta_municipio   ON [id_municipio, ano, rede]
-  LEFT JOIN meta_uf          ON [sigla_uf, ano, rede]
-  LEFT JOIN meta_brasil      ON [ano, rede]
+  LEFT JOIN meta_municipio   ON [id_municipio, ano]
+  LEFT JOIN meta_uf          ON [sigla_uf, ano]
+  LEFT JOIN meta_brasil      ON [ano]
 ```
+> Nota: a coluna `rede` é excluída das chaves de join porque tem encoding diferente entre tabelas (numérico vs texto).
 
 **Colunas calculadas criadas:**
 - `gap_meta_municipio_2030` = `taxa_alfabetizacao` − `meta_mun_2030`
@@ -157,7 +164,7 @@ indicador_municipio
 
 **Particionamento Silver:**
 ```
-data/silver/alfabetizacao_municipio/sigla_uf=SP/ano=2023/data.parquet
+s3://bucket/silver/alfabetizacao_municipio/sigla_uf=SP/ano=2023/data.parquet
 ```
 Reduz custo Athena em até 90% para queries filtradas por UF ou ano.
 
@@ -165,15 +172,16 @@ Reduz custo Athena em até 90% para queries filtradas por UF ou ano.
 
 ### `notebooks/03_gold_analytics.ipynb`
 
-**O que faz:** Constrói os 5 datasets analíticos da camada Gold.
+**O que faz:** Constrói os 6 datasets analíticos da camada Gold.
 
 | Dataset | Construção | Uso |
 |---|---|---|
 | `indicador_municipio` | Seleciona colunas-chave + adiciona `categoria_risco` (4 faixas de gap) | Dashboard principal, análise por município |
-| `evolucao_temporal_uf` | GroupBy `[ano, sigla_uf]`: média, mediana, desvio, total_municipios | Séries históricas, tendências regionais |
+| `evolucao_temporal_uf` | GroupBy `[ano, sigla_uf]`: média, mediana, total_municipios | Séries históricas, tendências regionais |
 | `ranking_uf` | GroupBy `sigla_uf` no ano mais recente, ordena por `media_taxa` | Comparativo entre estados |
 | `municipios_risco` | Top 100 municípios com pior `gap_meta_uf_2030` | Priorização de políticas públicas |
 | `comparativo_nacional` | Derrete colunas `meta_2024..2030` em linhas (melt) | Evolução nacional vs trajetória |
+| `proficiencia_municipio` | Agrega proficiência SAEB dos microdados por município | Correlação proficiência × alfabetização |
 
 **EDA Gold:**
 - Gráfico horizontal: Top 10 e Bottom 10 UFs por taxa de alfabetização
@@ -255,9 +263,9 @@ class QualityReport:
 | `check_completeness_ufs(df, col, 27)` | Cobertura dos 27 estados brasileiros |
 
 **Suites por camada:**
-- `suite_bronze()` → valida os 5 arquivos Bronze
-- `suite_silver()` → valida `alfabetizacao_municipio` e `alfabetizacao_uf`
-- `suite_gold()` → valida os 5 datasets Gold
+- `suite_bronze()` → valida os 6 arquivos Bronze
+- `suite_silver()` → valida `alfabetizacao_municipio`, `alfabetizacao_uf` e `microdados_alunos`
+- `suite_gold()` → valida os 6 datasets Gold
 
 **Saída:**
 - Tabela resumo: status por tabela, contagem de linhas, erros e avisos
@@ -298,7 +306,7 @@ class QualityReport:
   `meta`; o schema real usa `taxa_alfabetizacao`, `meta_alfabetizacao_2030`)
 - Extração de `sigla_uf` dos 2 primeiros dígitos do `id_municipio` via mapa IBGE
   (os arquivos INEP de município não têm coluna `sigla_uf`)
-- Parâmetro `rede` incluído nos JOINs (rede pública ≠ privada têm indicadores distintos)
+- `rede` removida das chaves de JOIN (encoding diferente entre tabelas: numérico vs texto)
 - Suporte a modo local e modo AWS controlado por `USE_AWS`
 
 ---
@@ -307,10 +315,13 @@ class QualityReport:
 
 **O que é:** Versão script Python do notebook 03.
 
-**Datasets gerados:**
-- `gold/alfabetizacao_municipio/` — indicador + metas + gaps
-- `gold/evolucao_temporal/` — série histórica por UF
+**Datasets gerados (6):**
+- `gold/indicador_municipio/` — taxa + metas + gaps + categoria de risco por município
+- `gold/evolucao_temporal_uf/` — série histórica por UF (média, mediana, total_municipios)
 - `gold/ranking_uf/` — ranking por estado no ano mais recente
+- `gold/municipios_risco/` — top 100 municípios com maior gap negativo vs meta 2030
+- `gold/comparativo_nacional/` — evolução nacional vs trajetória de metas 2024–2030
+- `gold/proficiencia_municipio/` — proficiência SAEB por município (dos microdados alunos)
 
 ---
 
@@ -419,12 +430,17 @@ INEP_DATA_DIR="/caminho/para/Dados INEP" python3 data/samples/generate_samples.p
 
 **Resultado:**
 ```
-data/samples/meta_brasil.parquet        (3 linhas)
-data/samples/meta_uf.parquet           (54 linhas)
-data/samples/meta_municipio.parquet    (10.704 linhas)
-data/samples/indicador_uf.parquet      (145 linhas)
-data/samples/indicador_municipio.parquet (23.995 linhas)
+data/samples/meta_brasil.parquet           (3 linhas)
+data/samples/meta_uf.parquet              (54 linhas)
+data/samples/meta_municipio.parquet       (10.704 linhas)
+data/samples/indicador_uf.parquet         (145 linhas)
+data/samples/indicador_municipio.parquet  (23.995 linhas)
+data/samples/microdados_alunos.parquet    (10.000 linhas)
 ```
+
+Outros scripts no mesmo diretório:
+- `download_saeb_sample.py` — baixa amostra dos microdados SAEB diretamente da fonte
+- `create_synthetic_samples.py` — gera dados sintéticos aleatórios para testes unitários
 
 ---
 
@@ -502,7 +518,7 @@ jupyter notebook
 ```bash
 # Pré-requisitos
 aws configure
-cp .env.example .env  # preencha com suas credenciais
+cp .env.example .env  # preencha com suas credenciais; atualize GLUE_IAM_ROLE
 
 # Setup (uma vez)
 python3 infra/setup_aws.py
@@ -511,7 +527,7 @@ python3 infra/setup_aws.py
 python3 pipelines/batch/bronze/ingest_bronze.py   # lê raw/ → grava bronze/
 python3 pipelines/batch/silver/transform_silver.py
 python3 pipelines/batch/gold/build_gold.py
-python3 quality/quality_checks.py
+python3 quality/checks/quality_checks.py
 ```
 
 ### Opção 3 — Carga Automática (Lambda + EventBridge)
