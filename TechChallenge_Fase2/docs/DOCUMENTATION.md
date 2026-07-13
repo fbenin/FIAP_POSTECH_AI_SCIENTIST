@@ -18,11 +18,12 @@ tech-challenge-fase2/
 │   ├── 02_silver_transformation.ipynb
 │   ├── 03_gold_analytics.ipynb
 │   ├── 04_streaming_simulation.ipynb
-│   └── 05_quality_checks.ipynb
+│   ├── 05_quality_checks.ipynb
+│   └── 06_validacao_queries.ipynb
 │
-├── pipelines/                          ← Scripts Python equivalentes (para Glue/produção)
+├── pipelines/                          ← Scripts Python equivalentes (produção / Lambda)
 │   ├── batch/
-│   │   ├── bronze/ingest_bronze.py
+│   │   ├── bronze/ingest_bronze.py     ← lê s3://bucket/raw/ → grava s3://bucket/bronze/
 │   │   ├── silver/transform_silver.py
 │   │   └── gold/build_gold.py
 │   └── streaming/
@@ -33,10 +34,13 @@ tech-challenge-fase2/
 │   └── quality_checks.py               ← Suite de validações por camada
 │
 ├── orchestration/dags/
-│   └── pipeline_alfabetizacao.py       ← DAG Airflow
+│   └── pipeline_alfabetizacao.py       ← DAG Airflow (referência — substituído por Lambda)
 │
 ├── infra/
-│   └── setup_aws.py                    ← Cria bucket S3 + Glue DB + Athena workgroup
+│   ├── setup_aws.py                    ← Cria bucket S3 + Glue DB + Athena workgroup
+│   ├── setup_lambda_pipeline.py        ← Provisiona Lambda + EventBridge (carga automática)
+│   └── lambda/
+│       └── handler.py                  ← Handler Lambda: Bronze→Silver→Gold→Quality
 │
 ├── data/
 │   ├── bronze/                         ← Bronze local (gerado pelos notebooks)
@@ -50,18 +54,19 @@ tech-challenge-fase2/
 │   ├── athena_queries.sql              ← 5 queries SQL prontas para Athena
 │   └── quality_reports/               ← Relatórios JSON gerados pelo notebook 05
 │
-├── docker-compose.yml                  ← Airflow local
+├── docker-compose.yml                  ← Airflow local (referência)
 ├── requirements.txt
 └── .env.example
 ```
 
 ---
 
-## Dados INEP — Fonte Real
+## Dados INEP — Fonte Real (S3 Raw)
 
-Os 5 arquivos CSV do INEP estão em:
+Os 6 arquivos CSV do INEP estão armazenados na camada **Raw** do S3, de forma imutável:
+
 ```
-~/Desktop/FIAP - Ciências de Dados com IA/Tech Challenges/Fase 2/Dados INEP/
+s3://tech-challenge-alfabetizacao-01/raw/
 ```
 
 | Arquivo | Linhas | Granularidade |
@@ -71,6 +76,9 @@ Os 5 arquivos CSV do INEP estão em:
 | `br_inep_avaliacao_alfabetizacao_meta_alfabetizacao_municipio.csv` | 10.704 | Municipal |
 | `br_inep_avaliacao_alfabetizacao_uf.csv` | 145 | Estadual |
 | `br_inep_avaliacao_alfabetizacao_municipio.csv` | 23.995 | Municipal |
+| `microdados_alunos_saeb_2021_amostra.csv` | 10.000 | Individual (alunos 2º ano EF) |
+
+> A pasta `dadosINEP/` local foi removida do repositório. O pipeline lê diretamente do S3 `raw/` — não há dependência de arquivos locais.
 
 **Colunas principais:**
 - `ano` — ano de referência (2023, 2024…)
@@ -94,12 +102,15 @@ Os 5 arquivos CSV do INEP estão em:
 
 **Seções:**
 1. Instalação de dependências e imports
-2. Configuração de variáveis (bucket S3, região, prefixos)
+2. Configuração de variáveis (bucket S3, região, prefixos raw/ e bronze/)
 3. Funções de setup AWS: `create_bucket()`, `set_lifecycle_policy()`, `create_glue_database()`, `create_athena_workgroup()`
-4. Carregamento dos 5 CSVs INEP com adição de metadados: `_fonte`, `_arquivo_origem`, `_data_ingestao`
+4. Leitura dos 6 CSVs diretamente de `s3://bucket/raw/` via `s3_client.get_object()`, com adição de metadados: `_fonte`, `_arquivo_origem`, `_data_ingestao`
 5. EDA básica: schema, nulos, valores únicos por dataset
-6. Upload para S3 ou salvamento local como Parquet
+6. Conversão para Parquet e upload para `s3://bucket/bronze/`
 7. Verificação final com contagem de linhas por tabela
+
+**Fonte dos dados:**
+O notebook lê os CSVs diretamente da camada Raw do S3 (`s3://bucket/raw/`). Não há leitura de arquivos locais.
 
 **Por que metadados no Bronze:**
 Seguindo o padrão das aulas de Arquitetura de Big Data (notebook `02_carga_camada_bronze.py` da professora),
@@ -267,16 +278,14 @@ class QualityReport:
 
 ### `pipelines/batch/bronze/ingest_bronze.py`
 
-**O que é:** Versão script Python do notebook 01, para uso em AWS Glue ou cron.
+**O que é:** Versão script Python do notebook 01, executada pela Lambda em produção.
 
-**Diferença do notebook:** Não faz EDA nem exibe tabelas. Focado em execução silenciosa.
+**Funcionamento:**
+- Lê cada CSV diretamente de `s3://bucket/raw/<arquivo>.csv` via `boto3`
+- Adiciona metadados de ingestão (`_fonte`, `_arquivo_origem`, `_data_ingestao`)
+- Converte para Parquet e grava em `s3://bucket/bronze/<tabela>/run_ts=.../`
 
-**Modo duplo:**
-- `USE_AWS=true` → faz upload para S3 via `boto3`
-- `USE_AWS=false` → salva em `data/bronze/` localmente
-
-**Fallback:** Se `basedosdados` SDK não estiver disponível (sem GCP configurado),
-carrega de `data/samples/` automaticamente.
+**Sem fallback local:** o pipeline requer acesso ao S3. Não há leitura de arquivos locais nem dependência de Base dos Dados.
 
 ---
 
@@ -344,7 +353,9 @@ o que faz a task Airflow marcar como `FAILED` e disparar retry.
 
 ### `orchestration/dags/pipeline_alfabetizacao.py`
 
-**O que é:** DAG Airflow que orquestra o pipeline completo.
+**O que é:** DAG Airflow de referência — mantida no repositório para documentação da lógica de orquestração.
+
+**Em produção, a orquestração é feita pela AWS Lambda + EventBridge** (ver `infra/lambda/handler.py`). O Airflow local via Docker não é mais o mecanismo de agendamento ativo.
 
 **Grafo de dependências:**
 ```
@@ -352,9 +363,43 @@ start → ingest_bronze → transform_silver → quality_check_silver
       → build_gold → quality_check_gold → end
 ```
 
-**Agendamento:** `0 6 * * *` — diário às 6h UTC
+**Agendamento original:** `0 6 * * *` — diário às 6h UTC (mesma frequência mantida no EventBridge)
 
 **Proteção:** quality checks são bloqueantes — Gold só é construído se Silver passar.
+
+---
+
+### `infra/lambda/handler.py`
+
+**O que é:** Handler da AWS Lambda que orquestra o pipeline completo em produção.
+
+**Fluxo de execução:**
+```
+1. Bronze  — lê s3://bucket/raw/ → grava s3://bucket/bronze/
+2. Silver  — lê Bronze → transforma → grava s3://bucket/silver/
+3. Gold    — lê Silver → agrega → grava s3://bucket/gold/
+4. Quality — valida camadas Silver e Gold; loga resultado no CloudWatch
+```
+
+**Retorno:** JSON com `statusCode` e resultados de cada etapa. Em caso de falha, a etapa seguinte não é executada.
+
+---
+
+### `infra/setup_lambda_pipeline.py`
+
+**O que é:** Script boto3 idempotente que provisiona toda a infraestrutura de agendamento na AWS.
+
+**O que cria/atualiza:**
+1. IAM Role `lambda-pipeline-alfabetizacao-role` (LambdaBasicExecution + S3FullAccess)
+2. Lambda function `pipeline-alfabetizacao` (Python 3.12, 512 MB, timeout 15 min)
+3. EventBridge rule `pipeline-alfabetizacao-daily` (`cron(0 6 * * ? *)` — diário às 6h UTC)
+4. Permissão para o EventBridge invocar a Lambda
+
+**Execute uma vez para provisionar; reexecute após alterar o código para atualizar a Lambda.**
+
+```bash
+python infra/setup_lambda_pipeline.py
+```
 
 ---
 
@@ -440,19 +485,19 @@ git push origin feature/<nome>
 
 ## Como Executar
 
-### Opção 1 — Notebooks (recomendado, sem AWS)
+### Opção 1 — Notebooks (recomendado)
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env  # configure credenciais AWS
 cd notebooks/
 jupyter notebook
-# execute na ordem: 01 → 02 → 03 → 04 → 05
+# execute na ordem: 01 → 02 → 03 → 04 → 05 → 06
 ```
 
-Os notebooks funcionam em modo local sem nenhuma credencial AWS.
-Os dados ficam em `data/bronze/`, `data/silver/`, `data/gold/`.
+> Os notebooks leem os dados diretamente de `s3://bucket/raw/` e requerem credenciais AWS.
 
-### Opção 2 — Scripts Python (produção / AWS Glue)
+### Opção 2 — Scripts Python
 
 ```bash
 # Pré-requisitos
@@ -461,21 +506,29 @@ cp .env.example .env  # preencha com suas credenciais
 
 # Setup (uma vez)
 python3 infra/setup_aws.py
-INEP_DATA_DIR="caminho/Dados INEP" python3 data/samples/generate_samples.py
 
 # Pipeline
-python3 pipelines/batch/bronze/ingest_bronze.py
+python3 pipelines/batch/bronze/ingest_bronze.py   # lê raw/ → grava bronze/
 python3 pipelines/batch/silver/transform_silver.py
 python3 pipelines/batch/gold/build_gold.py
 python3 quality/quality_checks.py
 ```
 
-### Opção 3 — Airflow (orquestração)
+### Opção 3 — Carga Automática (Lambda + EventBridge)
+
+O pipeline roda automaticamente todos os dias às **6h UTC**.
 
 ```bash
-docker-compose up -d
-# http://localhost:8080  (admin / admin)
-# ative a DAG: pipeline_alfabetizacao
+# Provisionar infraestrutura (uma vez):
+python infra/setup_lambda_pipeline.py
+
+# Invocar manualmente para testar:
+aws lambda invoke \
+  --function-name pipeline-alfabetizacao \
+  --payload '{}' /tmp/out.json && cat /tmp/out.json
+
+# Acompanhar logs em tempo real:
+aws logs tail /aws/lambda/pipeline-alfabetizacao --follow
 ```
 
 ---
@@ -506,11 +559,12 @@ em vez de todas as 54 (27 UFs × 2 anos).
 - Athena paga por bytes escaneados: ~$0.25/mês para este projeto
 - Redshift mínimo: ~$182/mês (dc2.large reservado) — custo injustificado
 
-### Por que Airflow local em vez de MWAA?
+### Por que Lambda + EventBridge em vez de Airflow/MWAA?
 
-- MWAA: ~$400/mês mínimo
-- Airflow no Docker: $0 (custo apenas de energia do laptop)
-- Trade-off: sem alta disponibilidade; aceitável para projeto acadêmico
+- MWAA: ~$400/mês mínimo; Lambda é praticamente gratuito (free tier cobre 1M invocações/mês)
+- Pipeline completo roda em segundos para este volume (~35k linhas) — bem abaixo do timeout de 15 min
+- Sem infraestrutura para manter; logs automáticos no CloudWatch
+- Trade-off: sem retry granular por task (Airflow oferece retry por step); aceitável para projeto acadêmico
 
 ---
 

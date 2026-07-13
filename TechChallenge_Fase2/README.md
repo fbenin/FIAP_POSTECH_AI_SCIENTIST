@@ -28,6 +28,9 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 | `br_inep_avaliacao_alfabetizacao_meta_alfabetizacao_municipio.csv` | Metas por município | Municipal (~10.704 linhas) |
 | `br_inep_avaliacao_alfabetizacao_uf.csv` | Indicadores de desempenho por UF | Estadual (~145 linhas) |
 | `br_inep_avaliacao_alfabetizacao_municipio.csv` | Indicadores de desempenho por município | Municipal (~23.995 linhas) |
+| `microdados_alunos_saeb_2021_amostra.csv` | Microdados SAEB 2021 — alunos do 2º ano EF | Individual (~10.000 linhas) |
+
+Todos os arquivos CSV estão armazenados na camada **Raw** do S3 (`s3://tech-challenge-alfabetizacao-01/raw/`) e são lidos diretamente de lá pelo pipeline.
 
 ---
 
@@ -39,18 +42,20 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                        FONTES DE DADOS                               ║
 ║                                                                      ║
-║  ┌─────────────────────────┐   ┌──────────────────────────────────┐  ║
-║  │  INEP / Base dos Dados  │   │  Streaming Simulado (Python)     │  ║
-║  │  5 datasets INEP (CSV)  │   │  Eventos de atualização          │  ║
-║  │  - meta_brasil          │   │  - indicador_atualizado          │  ║
-║  │  - meta_uf              │   │  - meta_revisada                 │  ║
-║  │  - meta_municipio       │   │  - medicao_desempenho            │  ║
-║  │  - indicador_uf         │   └────────────┬─────────────────────┘  ║
-║  │  - indicador_municipio  │                │ (Kinesis em produção)  ║
-║  └────────────┬────────────┘                │                        ║
-╚═══════════════╪═════════════════════════════╪════════════════════════╝
-                │  Batch (diário)             │  Near-real-time
-                ▼                             ▼
+║  ┌──────────────────────────────────┐   ┌──────────────────────────┐  ║
+║  │  S3 Raw  (CSV — imutável)        │   │  Streaming Simulado      │  ║
+║  │  s3://bucket/raw/                │   │  Eventos de atualização  │  ║
+║  │  - meta_brasil                   │   │  - indicador_atualizado  │  ║
+║  │  - meta_uf                       │   │  - meta_revisada         │  ║
+║  │  - meta_municipio                │   │  - medicao_desempenho    │  ║
+║  │  - indicador_uf                  │   └───────────┬──────────────┘  ║
+║  │  - indicador_municipio           │               │ (Kinesis em    ║
+║  │  - microdados_alunos_saeb_2021   │               │  produção)     ║
+║  └────────────┬─────────────────────┘               │                ║
+╚═══════════════╪═════════════════════════════════════╪════════════════╝
+                │  EventBridge (cron diário 6h UTC)   │  Near-real-time
+                │  → Lambda pipeline-alfabetizacao    │
+                ▼                                     ▼
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                    BRONZE LAYER  (S3 Parquet)                        ║
 ║                                                                      ║
@@ -59,12 +64,13 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 ║  s3://bucket/bronze/meta_municipio/run_ts=.../                       ║
 ║  s3://bucket/bronze/indicador_uf/run_ts=.../                         ║
 ║  s3://bucket/bronze/indicador_municipio/run_ts=.../                  ║
+║  s3://bucket/bronze/microdados_alunos/run_ts=.../                    ║
 ║  s3://bucket/bronze/streaming/dt=YYYY-MM-DD/batch_*.parquet          ║
 ║                                                                      ║
 ║  Características: dados brutos, metadados de ingestão,              ║
 ║  histórico completo, lifecycle → S3-IA após 90 dias (FinOps)         ║
 ╚══════════════════════════════╤═══════════════════════════════════════╝
-                               │  AWS Glue ETL Job
+                               │  Lambda / Python ETL
                                ▼
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                    SILVER LAYER  (S3 Parquet Particionado)           ║
@@ -78,18 +84,20 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 ║                                                                      ║
 ║  s3://bucket/silver/alfabetizacao_municipio/sigla_uf=SP/ano=2023/   ║
 ║  s3://bucket/silver/alfabetizacao_uf/sigla_uf=SP/ano=2023/          ║
+║  s3://bucket/silver/microdados_alunos/                               ║
 ╚══════════════════════════════╤═══════════════════════════════════════╝
-                               │  AWS Glue ETL Job
+                               │  Lambda / Python ETL
                                ▼
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                    GOLD LAYER  (S3 Parquet Analítico)                ║
 ║                                                                      ║
 ║  Datasets prontos para consumo:                                      ║
-║  • indicador_municipio  — taxa + metas + gaps por município          ║
-║  • evolucao_temporal_uf — série histórica por estado                 ║
-║  • ranking_uf           — ranking de UFs no ano mais recente         ║
-║  • municipios_risco     — municípios mais distantes da meta          ║
-║  • comparativo_nacional — evolução nacional vs trajetória 2030       ║
+║  • indicador_municipio      — taxa + metas + gaps por município      ║
+║  • evolucao_temporal_uf     — série histórica por estado             ║
+║  • ranking_uf               — ranking de UFs no ano mais recente     ║
+║  • municipios_risco         — municípios mais distantes da meta      ║
+║  • comparativo_nacional     — evolução nacional vs trajetória 2030   ║
+║  • proficiencia_municipio   — proficiência SAEB por município        ║
 ╚══════════════════════════════╤═══════════════════════════════════════╝
                                │
                ┌───────────────┴───────────────┐
@@ -101,12 +109,13 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 ### Fluxo de Dados
 
 ```
-1. [Batch]     INEP CSV → S3 Bronze (Parquet + metadados ingestão)
-2. [Streaming] Eventos → fila JSONL → S3 Bronze/streaming/
-3. [ETL]       S3 Bronze → Glue Job → S3 Silver (particionado por sigla_uf/ano)
-4. [ETL]       S3 Silver → Glue Job → S3 Gold (datasets analíticos)
-5. [Query]     S3 Gold → Athena (SQL) → BI / ML
-6. [Monitor]   Cada etapa → CloudWatch Logs + Quality Checks Python
+1. [Raw]       CSVs INEP armazenados em s3://bucket/raw/ (imutável)
+2. [Batch]     Lambda lê Raw CSV → converte Parquet → S3 Bronze (com metadados de ingestão)
+3. [Streaming] Eventos → fila JSONL → S3 Bronze/streaming/
+4. [ETL]       S3 Bronze → Python ETL → S3 Silver (particionado por sigla_uf/ano)
+5. [ETL]       S3 Silver → Python ETL → S3 Gold (datasets analíticos)
+6. [Query]     S3 Gold → Athena (SQL) → BI / ML
+7. [Monitor]   Cada etapa → CloudWatch Logs + Quality Checks Python
 ```
 
 ---
@@ -116,12 +125,13 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 | Componente | Tecnologia | Justificativa |
 |---|---|---|
 | **Storage (todas as camadas)** | AWS S3 | Barato ($0.023/GB), durável 11 9s, integrado nativamente com Glue e Athena |
-| **ETL / Transformação** | AWS Glue (PySpark) + Python (pandas) | Serverless: escala automática, sem gestão de cluster; scripts Python para modo local |
+| **Raw Layer** | AWS S3 (`/raw/`) | CSVs originais do INEP armazenados de forma imutável; pipeline sempre lê daqui |
+| **ETL / Transformação** | Python (pandas + boto3) | Serverless via Lambda; sem gestão de cluster |
 | **Consulta analítica** | AWS Athena | SQL direto no S3, paga por query ($5/TB), sem servidor fixo |
-| **Orquestração** | Apache Airflow (Docker local) | Open source, DAG diário, evita custo do MWAA (~$400/mês) |
-| **Ingestão Batch** | Python + `basedosdados` SDK | SDK oficial da plataforma fonte; fallback para CSV INEP local |
+| **Orquestração** | AWS Lambda + EventBridge | Serverless, cron diário às 6h UTC, custo próximo a zero |
+| **Ingestão Batch** | Python + boto3 (lê S3 raw/) | Lê diretamente os CSVs da camada Raw no S3 |
 | **Streaming simulado** | Python producer/consumer | Simula Kinesis sem custo em dev; código pronto para migrar para Kinesis |
-| **Qualidade de dados** | Python (pandas + assertions) | Framework leve, sem dependências extras, integrado ao DAG |
+| **Qualidade de dados** | Python (pandas + assertions) | Framework leve, sem dependências extras, integrado à Lambda |
 | **Formato de arquivo** | **Parquet (PyArrow)** | 60-80% menor que CSV; columnar reduz custo Athena em ~10x |
 | **Notebooks** | Jupyter (.ipynb) | Documentação executável, EDA integrada, facilita reprodução |
 
@@ -133,15 +143,16 @@ Para entender esses fatores, é necessário integrar múltiplas fontes:
 tech-challenge-fase2/
 │
 ├── notebooks/                          ← PIPELINE PRINCIPAL (Jupyter)
-│   ├── 01_setup_e_ingestao_bronze.ipynb   # Setup AWS + ingestão Bronze
+│   ├── 01_setup_e_ingestao_bronze.ipynb   # Setup AWS + ingestão Bronze (lê S3 raw/)
 │   ├── 02_silver_transformation.ipynb     # Limpeza + integração Silver
 │   ├── 03_gold_analytics.ipynb            # Datasets analíticos Gold
 │   ├── 04_streaming_simulation.ipynb      # Producer/Consumer streaming
-│   └── 05_quality_checks.ipynb            # Validação + FinOps
+│   ├── 05_quality_checks.ipynb            # Validação + FinOps
+│   └── 06_validacao_queries.ipynb         # Validação de queries Athena
 │
 ├── pipelines/
 │   ├── batch/
-│   │   ├── bronze/ingest_bronze.py        # Ingestão batch (Base dos Dados)
+│   │   ├── bronze/ingest_bronze.py        # Lê CSVs de S3 raw/ → grava S3 bronze/
 │   │   ├── silver/transform_silver.py     # Transformações Silver
 │   │   └── gold/build_gold.py             # Construção Gold
 │   └── streaming/
@@ -152,10 +163,13 @@ tech-challenge-fase2/
 │   └── quality_checks.py                  # Suite de checks por camada
 │
 ├── orchestration/
-│   └── dags/pipeline_alfabetizacao.py     # DAG Airflow (Bronze→Silver→Gold)
+│   └── dags/pipeline_alfabetizacao.py     # DAG Airflow (referência — substituído por Lambda)
 │
 ├── infra/
-│   └── setup_aws.py                       # Cria S3 + Glue DB + Athena workgroup
+│   ├── setup_aws.py                       # Cria S3 + Glue DB + Athena workgroup
+│   ├── setup_lambda_pipeline.py           # Provisiona Lambda + EventBridge (carga automática)
+│   └── lambda/
+│       └── handler.py                     # Handler da Lambda (Bronze→Silver→Gold→Quality)
 │
 ├── data/
 │   ├── bronze/                            # Bronze local (gerado pelos notebooks)
@@ -169,7 +183,7 @@ tech-challenge-fase2/
 │   ├── DOCUMENTATION.md                   # Documentação técnica detalhada
 │   └── quality_reports/                   # Relatórios JSON de qualidade
 │
-├── docker-compose.yml                     # Airflow local
+├── docker-compose.yml                     # Airflow local (referência)
 ├── requirements.txt
 └── .env.example                           # Template de variáveis de ambiente
 ```
@@ -184,8 +198,8 @@ tech-challenge-fase2/
 Python 3.9+
 pip install -r requirements.txt
 
-# Para execução com AWS real:
-aws configure  # configure suas credenciais
+# Credenciais AWS (necessário para todos os modos):
+aws configure  # ou configure no .env
 ```
 
 ### Opção 1: Notebooks (recomendado)
@@ -197,72 +211,76 @@ cd notebooks/
 jupyter notebook
 
 # Ordem de execução:
-# 01_setup_e_ingestao_bronze.ipynb
+# 01_setup_e_ingestao_bronze.ipynb   ← lê CSVs de s3://bucket/raw/
 # 02_silver_transformation.ipynb
 # 03_gold_analytics.ipynb
 # 04_streaming_simulation.ipynb
 # 05_quality_checks.ipynb
+# 06_validacao_queries.ipynb
 ```
 
-Os notebooks funcionam **sem credenciais AWS** (modo local) — os dados são processados e salvos em `data/bronze/`, `data/silver/`, `data/gold/`.
+> Os notebooks leem os dados diretamente do S3 (`raw/`) e requerem credenciais AWS.
 
-### Opção 2: Scripts Python (produção/Glue)
+### Opção 2: Scripts Python (produção)
 
 ```bash
 # 1. Configure variáveis de ambiente
 cp .env.example .env
-# edite .env: S3_BUCKET_NAME, AWS_DEFAULT_REGION, USE_AWS=true
+# edite .env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
-# 2. Setup AWS (criar bucket, Glue DB, Athena workgroup)
+# 2. Setup AWS (criar bucket, Glue DB, Athena workgroup) — apenas uma vez
 python infra/setup_aws.py
 
-# 3. Gerar amostras dos dados INEP (necessário apenas uma vez)
-python data/samples/generate_samples.py
-
-# 4. Pipeline Bronze
-python pipelines/batch/bronze/ingest_bronze.py
-
-# 5. Streaming (terminais separados)
-python pipelines/streaming/producer.py &
-python pipelines/streaming/consumer.py &
-
-# 6. Silver
+# 3. Pipeline manual
+python pipelines/batch/bronze/ingest_bronze.py   # lê raw/ → grava bronze/
 python pipelines/batch/silver/transform_silver.py
-
-# 7. Gold
 python pipelines/batch/gold/build_gold.py
-
-# 8. Quality Checks
 python quality/quality_checks.py
 ```
 
-### Opção 3: Airflow (orquestração)
+### Opção 3: Carga Automática (Lambda + EventBridge — recomendado para produção)
+
+O pipeline é executado automaticamente todos os dias às **6h UTC** via AWS Lambda + EventBridge.
 
 ```bash
-docker-compose up -d
-# Acesse http://localhost:8080 (user: admin / pass: admin)
-# Ative a DAG: pipeline_alfabetizacao
+# Provisionar infraestrutura (apenas uma vez):
+python infra/setup_lambda_pipeline.py
+
+# Invocar manualmente para testar:
+aws lambda invoke \
+  --function-name pipeline-alfabetizacao \
+  --payload '{}' /tmp/out.json && cat /tmp/out.json
+
+# Acompanhar logs:
+aws logs tail /aws/lambda/pipeline-alfabetizacao --follow
 ```
+
+**Recursos provisionados:**
+
+| Recurso | Nome | Detalhe |
+|---|---|---|
+| IAM Role | `lambda-pipeline-alfabetizacao-role` | LambdaBasicExecution + S3FullAccess |
+| Lambda | `pipeline-alfabetizacao` | Python 3.12, 512 MB, timeout 15 min |
+| EventBridge | `pipeline-alfabetizacao-daily` | `cron(0 6 * * ? *)` — diário às 6h UTC |
 
 ### Variáveis de Ambiente (.env)
 
 ```env
 # AWS
-S3_BUCKET_NAME=tech-challenge-alfabetizacao
-AWS_DEFAULT_REGION=us-east-1
 AWS_ACCESS_KEY_ID=sua_key
 AWS_SECRET_ACCESS_KEY=sua_secret
-USE_AWS=false                       # true para usar S3 real
+AWS_DEFAULT_REGION=us-east-1
 
-# Base dos Dados (opcional — para ingestão via API)
-BASEDOSDADOS_PROJECT_ID=seu_projeto_gcp
-
-# Caminho dos dados INEP locais
-INEP_DATA_DIR=/caminho/para/Dados INEP
+# S3
+S3_BUCKET_NAME=tech-challenge-alfabetizacao-01
+S3_RAW_PREFIX=raw
+S3_BRONZE_PREFIX=bronze
+S3_SILVER_PREFIX=silver
+S3_GOLD_PREFIX=gold
 
 # Glue / Athena
 GLUE_DATABASE=alfabetizacao_db
-ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao/athena-results/
+ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao-01/athena-results/
 ```
 
 ---
@@ -304,8 +322,8 @@ ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao/athena-results/
 | **Logs Python (logging)** | Cada etapa logueia volume processado, erros e timing |
 | **Quality Checks** | Suite de assertions (not_empty, no_duplicates, range, ref_integrity) por camada |
 | **Relatório JSON** | `docs/quality_reports/quality_report_*.json` gerado a cada execução |
-| **Airflow Task Status** | Cada task Bronze/Silver/Gold/Quality tem status de sucesso/falha |
-| **CloudWatch Logs** | Glue Jobs publicam logs automaticamente (ativado no workgroup Athena) |
+| **CloudWatch Logs** | Lambda publica logs automaticamente em `/aws/lambda/pipeline-alfabetizacao` |
+| **EventBridge** | Disparo diário às 6h UTC com histórico de invocações no console AWS |
 | **Athena workgroup** | Limite de 1 GB de scan por query — alerta se query exceder |
 
 ---
@@ -317,7 +335,7 @@ ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao/athena-results/
 | **Parquet vs CSV** | ~70% menos armazenamento S3; ~10x menos custo Athena (paga por bytes) |
 | **Particionamento `sigla_uf/ano`** | Athena escaneia só partições relevantes → ~90% redução de custo por query |
 | **S3 Lifecycle Bronze → S3-IA (90 dias)** | ~45% redução no custo de dados frios de auditoria |
-| **Airflow Docker vs MWAA** | Economiza ~$400/mês |
+| **Lambda + EventBridge vs MWAA** | Economiza ~$400/mês (MWAA mínimo); Lambda é praticamente gratuito |
 | **Athena vs Redshift** | Sem cluster fixo → ~$182/mês economizado |
 | **Glue Serverless vs EMR** | Paga apenas pelo tempo de execução |
 | **Athena workgroup 1 GB limit** | Previne queries acidentais caras |
@@ -326,12 +344,13 @@ ATHENA_OUTPUT_LOCATION=s3://tech-challenge-alfabetizacao/athena-results/
 
 | Serviço | Custo/mês | Observação |
 |---|---|---|
-| S3 Standard (< 5 GB) | $0.30 | $0.023/GB |
+| S3 Standard (< 5 GB) | $0.30 | $0.023/GB — inclui camada raw/ |
 | S3 Standard-IA (Bronze) | $0.10 | após 90 dias |
-| AWS Glue (4 DPU-hora) | $1.76 | $0.44/DPU-hora |
+| AWS Lambda | ~$0.00 | free tier: 1M invocações/mês |
+| EventBridge | ~$0.00 | free tier: 14M eventos/mês |
 | AWS Athena (5 GB) | $0.25 | $5/TB, Parquet 10x barato |
 | CloudWatch Logs | $0.50 | |
-| **TOTAL** | **~$3/mês** | |
+| **TOTAL** | **~$1/mês** | |
 
 ---
 
