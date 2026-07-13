@@ -207,16 +207,52 @@ def check_gold_municipios_risco() -> QualityReport:
     return report
 
 
+def check_silver_microdados_alunos() -> QualityReport:
+    report = QualityReport("silver", "microdados_alunos")
+    df = read_table("silver", "microdados_alunos")
+
+    report.results.append(check_not_empty(df))
+    if df.empty:
+        return report
+
+    report.results.append(check_no_duplicates(df, ["id_saeb", "id_aluno"]))
+    report.results.append(check_no_nulls(df, ["id_municipio", "proficiencia_lp_saeb"]))
+    report.results.append(check_range(df, "proficiencia_lp_saeb", 400, 1000))
+    report.results.append(check_range(df, "proficiencia_mt_saeb", 400, 1000))
+
+    if "alfabetizado" in df.columns:
+        report.results.append(CheckResult("alfabetizado_col_exists", True,
+                                          "coluna alfabetizado presente"))
+    return report
+
+
+def check_gold_proficiencia_municipio() -> QualityReport:
+    report = QualityReport("gold", "proficiencia_municipio")
+    df = read_table("gold", "proficiencia_municipio")
+
+    report.results.append(check_not_empty(df))
+    if df.empty:
+        return report
+
+    report.results.append(check_no_duplicates(df, ["id_municipio"]))
+    report.results.append(check_no_nulls(df, ["id_municipio", "perc_alfabetizados"]))
+    report.results.append(check_range(df, "perc_alfabetizados", 0, 100))
+    report.results.append(check_range(df, "media_proficiencia_lp", 400, 1000))
+    return report
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
 def run() -> bool:
     logger.info("=== Iniciando Quality Checks ===")
     suites = [
         check_silver_alfabetizacao,
+        check_silver_microdados_alunos,
         check_gold_indicador_municipio,
         check_gold_evolucao_temporal,
         check_gold_ranking_uf,
         check_gold_municipios_risco,
+        check_gold_proficiencia_municipio,
     ]
 
     all_passed = True
