@@ -185,6 +185,60 @@ def build_comparativo_nacional(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# ── Leitura Silver microdados ──────────────────────────────────────────────────
+
+def read_silver_microdados() -> pd.DataFrame:
+    if USE_AWS:
+        key = f"{SILVER}/microdados_alunos/microdados_alunos.parquet"
+        try:
+            obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
+            df = pd.read_parquet(io.BytesIO(obj["Body"].read()))
+            logger.info("Silver microdados carregado (S3): %d alunos", len(df))
+            return df
+        except Exception as e:
+            logger.warning("Silver microdados não encontrado (%s) — pulando.", e)
+            return pd.DataFrame()
+    else:
+        frames = []
+        base = LOCAL_S / "microdados_alunos"
+        if base.exists():
+            for p in base.rglob("*.parquet"):
+                frames.append(pd.read_parquet(p))
+        if not frames:
+            return pd.DataFrame()
+        df = pd.concat(frames, ignore_index=True)
+        logger.info("Silver microdados carregado (local): %d alunos", len(df))
+        return df
+
+
+def build_proficiencia_municipio(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Agrega proficiência individual por município.
+    Permite comparar os microdados SAEB com o indicador oficial do INEP.
+    """
+    if df.empty or "id_municipio" not in df.columns:
+        return pd.DataFrame()
+
+    df = df.copy()
+    df["proficiencia_lp_saeb"] = pd.to_numeric(df["proficiencia_lp_saeb"], errors="coerce")
+    df["proficiencia_mt_saeb"] = pd.to_numeric(df["proficiencia_mt_saeb"], errors="coerce")
+    df["alfabetizado"]         = df["alfabetizado"].astype(bool) if "alfabetizado" in df.columns else (df["proficiencia_lp_saeb"] >= 743)
+
+    return (
+        df.groupby("id_municipio")
+        .agg(
+            total_alunos            = ("id_aluno",            "count"),
+            media_proficiencia_lp   = ("proficiencia_lp_saeb","mean"),
+            media_proficiencia_mt   = ("proficiencia_mt_saeb","mean"),
+            perc_alfabetizados      = ("alfabetizado",        "mean"),
+        )
+        .reset_index()
+        .assign(perc_alfabetizados=lambda x: (x["perc_alfabetizados"] * 100).round(2))
+        .round({"media_proficiencia_lp": 2, "media_proficiencia_mt": 2})
+        .sort_values("perc_alfabetizados")
+    )
+
+
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 
 def run():
@@ -193,12 +247,15 @@ def run():
     if df.empty:
         return
 
+    microdados = read_silver_microdados()
+
     datasets = {
-        "indicador_municipio"  : build_indicador_municipio(df),
-        "evolucao_temporal_uf" : build_evolucao_temporal(df),
-        "ranking_uf"           : build_ranking_uf(df),
-        "municipios_risco"     : build_municipios_risco(df),
-        "comparativo_nacional" : build_comparativo_nacional(df),
+        "indicador_municipio"      : build_indicador_municipio(df),
+        "evolucao_temporal_uf"     : build_evolucao_temporal(df),
+        "ranking_uf"               : build_ranking_uf(df),
+        "municipios_risco"         : build_municipios_risco(df),
+        "comparativo_nacional"     : build_comparativo_nacional(df),
+        "proficiencia_municipio"   : build_proficiencia_municipio(microdados),
     }
 
     for name, gold_df in datasets.items():

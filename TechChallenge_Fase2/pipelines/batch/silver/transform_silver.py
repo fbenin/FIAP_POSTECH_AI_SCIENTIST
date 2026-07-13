@@ -191,6 +191,34 @@ def clean_indicador_municipio(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def clean_microdados_alunos(df: pd.DataFrame) -> pd.DataFrame:
+    df = _lower_cols(df)
+    df.columns = [c.lower() for c in df.columns]
+
+    num_cols = ["proficiencia_lp", "proficiencia_mt",
+                "proficiencia_lp_saeb", "proficiencia_mt_saeb",
+                "peso_aluno_lp", "peso_aluno_mt",
+                "erro_padrao_lp", "erro_padrao_mt"]
+    df = _to_numeric(df, num_cols)
+
+    # Mantém só alunos com proficiência válida em LP (critério de alfabetização)
+    df = df[df["in_proficiencia_lp"] == "1"].copy()
+
+    # Padroniza id_municipio para 7 dígitos (compatível com demais tabelas)
+    if "id_municipio" in df.columns:
+        df["id_municipio"] = df["id_municipio"].astype(str).str.zfill(7)
+
+    # Indicador de alfabetização (ponto de corte 743 pontos — Pesquisa Alfabetiza Brasil 2023)
+    if "proficiencia_lp_saeb" in df.columns:
+        df["alfabetizado"] = df["proficiencia_lp_saeb"] >= 743
+
+    df = df.drop_duplicates(subset=["id_saeb", "id_aluno"])
+    df = df.dropna(subset=["id_municipio", "proficiencia_lp_saeb"])
+
+    logger.info("clean microdados_alunos: %d alunos com proficiência LP válida", len(df))
+    return df
+
+
 # ── Integração ────────────────────────────────────────────────────────────────
 
 def integrate_municipio(ind_mun, meta_mun, meta_uf_df, meta_brasil_df):
@@ -242,6 +270,7 @@ def run():
     meta_municipio  = clean_meta_municipio(read_bronze("meta_municipio"))
     indicador_uf    = clean_indicador_uf(read_bronze("indicador_uf"))
     indicador_mun   = clean_indicador_municipio(read_bronze("indicador_municipio"))
+    microdados      = clean_microdados_alunos(read_bronze("microdados_alunos"))
 
     if indicador_mun.empty:
         logger.error("indicador_municipio vazio — abortando Silver.")
@@ -255,12 +284,17 @@ def run():
         _upload_parquet(meta_brasil,    f"{SILVER}/meta_brasil/meta_brasil.parquet")
         _upload_parquet(meta_uf,        f"{SILVER}/meta_uf/meta_uf.parquet")
         _upload_parquet(meta_municipio, f"{SILVER}/meta_municipio/meta_municipio.parquet")
+        if not microdados.empty:
+            _upload_parquet(microdados, f"{SILVER}/microdados_alunos/microdados_alunos.parquet")
     else:
-        _save_local(silver_mun,    "alfabetizacao_municipio", ["sigla_uf", "ano"])
-        _save_local(indicador_uf,  "alfabetizacao_uf",        ["sigla_uf", "ano"])
-        _save_local(meta_brasil,   "meta_brasil")
+        _save_local(silver_mun,   "alfabetizacao_municipio", ["sigla_uf", "ano"])
+        _save_local(indicador_uf, "alfabetizacao_uf",        ["sigla_uf", "ano"])
+        _save_local(meta_brasil,  "meta_brasil")
+        if not microdados.empty:
+            _save_local(microdados, "microdados_alunos")
 
-    logger.info("=== Silver concluído: %d linhas integradas ===", len(silver_mun))
+    logger.info("=== Silver concluído: %d linhas integradas, %d alunos ===",
+                len(silver_mun), len(microdados))
     return silver_mun
 
 
