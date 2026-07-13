@@ -143,6 +143,31 @@ def ingest_uf() -> pd.DataFrame:
         return _load_sample("indicador_uf.parquet")
 
 
+def ingest_microdados_alunos() -> pd.DataFrame:
+    """
+    Microdados SAEB 2021 — alunos do 2º ano EF (foco da alfabetização).
+    Usa amostra pré-gerada por data/samples/download_saeb_sample.py.
+    Contém proficiência individual em LP e MT, além de dados de escola e município.
+    """
+    try:
+        import basedosdados as bd
+        project = os.getenv("BASEDOSDADOS_PROJECT_ID")
+        logger.info("Baixando microdados_alunos via basedosdados...")
+        df = bd.read_sql(
+            query="""
+                SELECT * FROM `basedosdados.br_inep_saeb.aluno`
+                WHERE ano = 2021 AND serie = 2
+                ORDER BY RAND()
+                LIMIT 10000
+            """,
+            billing_project_id=project,
+        )
+        return df
+    except Exception as e:
+        logger.warning("basedosdados indisponível (%s) — usando amostra SAEB local.", e)
+        return _load_sample("microdados_alunos.parquet")
+
+
 def _load_sample(filename: str) -> pd.DataFrame:
     path = os.path.join(os.path.dirname(__file__), "../../../data/samples", filename)
     if os.path.exists(path):
@@ -152,11 +177,12 @@ def _load_sample(filename: str) -> pd.DataFrame:
 
 
 SOURCES = {
-    "indicador_municipio": ingest_indicador_municipio,
-    "indicador_uf"       : ingest_uf,
-    "meta_brasil"        : ingest_meta_brasil,
-    "meta_uf"            : ingest_meta_uf,
-    "meta_municipio"     : ingest_meta_municipio,
+    "indicador_municipio" : ingest_indicador_municipio,
+    "indicador_uf"        : ingest_uf,
+    "meta_brasil"         : ingest_meta_brasil,
+    "meta_uf"             : ingest_meta_uf,
+    "meta_municipio"      : ingest_meta_municipio,
+    "microdados_alunos"   : ingest_microdados_alunos,
 }
 
 
