@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+env/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (arquivos grandes não vão pro repo)
+data/*.csv
+data/*.parquet
+data/*.xlsx
+data/*.json
+
+# OS
+.DS_Store
