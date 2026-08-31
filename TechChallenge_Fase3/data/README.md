@@ -1,6 +1,8 @@
 # Dados
 
-Os dados **não são versionados** neste repositório. Baixe localmente via AWS CLI antes de rodar os notebooks.
+Os dados da camada Gold desta fase estão disponíveis em `data/gold/` nesta branch para permitir execução local da EDA e da modelagem.
+
+Caso seja necessário reconstruir ou atualizar a camada Gold a partir do bucket S3, use as instruções abaixo.
 
 ## Pré-requisito
 
