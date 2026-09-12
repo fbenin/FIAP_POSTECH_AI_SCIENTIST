@@ -1,0 +1,174 @@
+{
+  "dataset_summary": {
+    "rows": 23995,
+    "columns": 18,
+    "years": [
+      2023,
+      2024
+    ],
+    "municipalities": 5550,
+    "states": 26,
+    "target_positive_rate": 0.19062304646801417,
+    "target_counts": {
+      "0": 19421,
+      "1": 4574
+    }
+  },
+  "feature_info": {
+    "numeric_features": [
+      "ano",
+      "media_portugues"
+    ],
+    "categorical_features": [
+      "sigla_uf",
+      "rede"
+    ],
+    "excluded_leakage_columns": [
+      "taxa_alfabetizacao",
+      "gap_meta_municipio_2030",
+      "gap_meta_uf_2030",
+      "atingiu_meta_uf",
+      "categoria_risco"
+    ]
+  },
+  "random_validation": {
+    "dummy_most_frequent": {
+      "accuracy": 0.8093352781829548,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusion_matrix": [
+        [
+          3884,
+          0
+        ],
+        [
+          915,
+          0
+        ]
+      ],
+      "roc_auc": 0.5
+    },
+    "logistic_regression": {
+      "accuracy": 0.921233590331319,
+      "precision": 0.7250628667225482,
+      "recall": 0.9453551912568307,
+      "f1": 0.8206831119544592,
+      "confusion_matrix": [
+        [
+          3556,
+          328
+        ],
+        [
+          50,
+          865
+        ]
+      ],
+      "roc_auc": 0.9819976026067431
+    },
+    "random_forest": {
+      "accuracy": 0.9314440508439258,
+      "precision": 0.7534602076124568,
+      "recall": 0.9519125683060109,
+      "f1": 0.8411395461129889,
+      "confusion_matrix": [
+        [
+          3599,
+          285
+        ],
+        [
+          44,
+          871
+        ]
+      ],
+      "roc_auc": 0.9836431373211101
+    },
+    "hist_gradient_boosting": {
+      "accuracy": 0.9529068555949156,
+      "precision": 0.8740499457111836,
+      "recall": 0.8797814207650273,
+      "f1": 0.8769063180827886,
+      "confusion_matrix": [
+        [
+          3768,
+          116
+        ],
+        [
+          110,
+          805
+        ]
+      ],
+      "roc_auc": 0.9875605679458392
+    }
+  },
+  "temporal_validation": {
+    "dummy_most_frequent": {
+      "accuracy": 0.7988431876606684,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusion_matrix": [
+        [
+          9944,
+          0
+        ],
+        [
+          2504,
+          0
+        ]
+      ],
+      "roc_auc": 0.5
+    },
+    "logistic_regression": {
+      "accuracy": 0.915327763496144,
+      "precision": 0.7657624633431085,
+      "recall": 0.8342651757188498,
+      "f1": 0.7985474006116208,
+      "confusion_matrix": [
+        [
+          9305,
+          639
+        ],
+        [
+          415,
+          2089
+        ]
+      ],
+      "roc_auc": 0.9697517961607366
+    },
+    "random_forest": {
+      "accuracy": 0.9083386889460154,
+      "precision": 0.7382034253757428,
+      "recall": 0.8434504792332268,
+      "f1": 0.7873252562907735,
+      "confusion_matrix": [
+        [
+          9195,
+          749
+        ],
+        [
+          392,
+          2112
+        ]
+      ],
+      "roc_auc": 0.9645636370383411
+    },
+    "hist_gradient_boosting": {
+      "accuracy": 0.9178984575835476,
+      "precision": 0.8639489194499018,
+      "recall": 0.7024760383386581,
+      "f1": 0.7748898678414097,
+      "confusion_matrix": [
+        [
+          9667,
+          277
+        ],
+        [
+          745,
+          1759
+        ]
+      ],
+      "roc_auc": 0.9678673213767065
+    }
+  }
+}

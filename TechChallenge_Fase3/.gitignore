@@ -9,5 +9,10 @@ venv/
 # Jupyter
 .ipynb_checkpoints/
 
+# Temporary artifacts
+tmp/
+*.whl
+PLANO_EXECUCAO*.md
+
 # OS
 .DS_Store
