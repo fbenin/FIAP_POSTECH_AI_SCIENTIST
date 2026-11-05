@@ -41,22 +41,19 @@ def _format_metric(value: Any) -> str:
 
 
 def _metrics_markdown_table(metrics: pd.DataFrame) -> str:
-    columns = ["model", "accuracy", "precision", "recall", "f1", "roc_auc"]
+    columns = ["model", "accuracy", "balanced_accuracy", "precision", "recall", "f1", "roc_auc", "pr_auc"]
+    columns = [c for c in columns if c in metrics.columns]
+    header_map = {
+        "model": "Modelo", "accuracy": "Accuracy", "balanced_accuracy": "Bal. Accuracy",
+        "precision": "Precision", "recall": "Recall", "f1": "F1",
+        "roc_auc": "ROC-AUC", "pr_auc": "PR-AUC",
+    }
     lines = [
-        "| Modelo | Accuracy | Precision | Recall | F1 | ROC-AUC |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| " + " | ".join(header_map.get(c, c) for c in columns) + " |",
+        "| " + " | ".join("---" if c == "model" else "---:" for c in columns) + " |",
     ]
     for _, row in metrics[columns].iterrows():
-        lines.append(
-            "| {model} | {accuracy} | {precision} | {recall} | {f1} | {roc_auc} |".format(
-                model=row["model"],
-                accuracy=_format_metric(row["accuracy"]),
-                precision=_format_metric(row["precision"]),
-                recall=_format_metric(row["recall"]),
-                f1=_format_metric(row["f1"]),
-                roc_auc=_format_metric(row["roc_auc"]),
-            )
-        )
+        lines.append("| " + " | ".join(_format_metric(row[c]) for c in columns) + " |")
     return "\n".join(lines)
 
 
@@ -138,11 +135,22 @@ Melhor modelo por F1 nesta validacao: `{best_temporal["model"]}`.
 
 ## Leitura Inicial
 
-O baseline `DummyClassifier` confirma que acuracia sozinha nao e suficiente: como a classe majoritaria representa cerca de 81% da base, um modelo que sempre prediz a classe 0 pode parecer razoavel em accuracy, mas tem recall e F1 iguais a zero para a classe de meta atingida.
-
-Na proxima etapa, a comparacao deve priorizar F1, recall da classe positiva e estabilidade entre validacao aleatoria e temporal. Tambem sera necessario interpretar as variaveis mais relevantes para conectar o resultado com decisoes de politica publica.
+O baseline `DummyClassifier` confirma que acuracia sozinha nao e suficiente: como a classe majoritaria representa cerca de 81% da base, um modelo que sempre prediz a classe 0 pode parecer razoavel em accuracy, mas tem recall e F1 iguais a zero para a classe de meta atingida. Para dados desbalanceados, as metricas prioritarias sao F1, PR-AUC e Balanced Accuracy.
 
 Observacao importante: `media_portugues` e um indicador educacional do mesmo ciclo observado. Portanto, as metricas devem ser lidas como desempenho de uma solucao diagnostica com dados contemporaneos. Para uma predicao antecipada antes da avaliacao anual, sera necessario testar uma versao sem essa variavel e enriquecer o modelo com dados socioeconomicos e territoriais externos.
+
+## Analise Da Mudanca De Modelo Entre Validacoes
+
+Na validacao aleatoria, o `HistGradientBoostingClassifier` apresentou o melhor F1 (0,8769). Na validacao temporal (treino 2023, teste 2024), o mesmo modelo caiu para o terceiro lugar (F1=0,7749), enquanto a `LogisticRegression` passou a lider (F1=0,7985).
+
+Essa inversao sugere que:
+
+1. **Overfitting temporal do HistGradient**: o modelo mais complexo aprende padroes especificos do conjunto aleatório que se distribuem tanto no treino como no teste (os mesmos municipios aparecem nos dois conjuntos). Quando obrigado a generalizar para um ano inteiro nao visto, sua vantagem desaparece.
+2. **Estabilidade do modelo linear**: a `LogisticRegression` aprende uma fronteira de decisao mais simples e generalizavel. A queda de F1 entre validacoes e menor (0,8207 -> 0,7985), indicando maior consistencia temporal.
+3. **Por que a validacao aleatoria e otimista**: a base tem registros de cada municipio em 2023 E 2024. Um split 80/20 aleatorio coloca registros do mesmo municipio nos dois conjuntos. Isso vaza as caracteristicas estruturais de cada municipio do treino para o teste, favorecendo modelos que memorizam padroes por municipio. A validacao temporal evita isso ao separar os conjuntos por ano.
+4. **Implicacao pratica**: para o objetivo de antecipar resultados de um ano futuro, a `LogisticRegression` e o modelo mais confiavel nesta base. A validacao aleatoria fornece uma estimativa otimista da capacidade de generalizacao temporal.
+
+Essa diferenca e um dos resultados mais relevantes do projeto e deve orientar a escolha do modelo em producao.
 
 {_confusion_matrices_section(random_raw)}
 

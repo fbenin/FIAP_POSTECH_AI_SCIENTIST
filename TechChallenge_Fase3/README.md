@@ -7,7 +7,9 @@
 
 ## Objetivo
 
-Desenvolver um modelo supervisionado capaz de prever se um aluno será considerado **alfabetizado ou não alfabetizado**, utilizando variáveis educacionais, territoriais e socioeconômicas.
+Desenvolver um modelo supervisionado de **classificação e diagnóstico educacional em nível municipal**, utilizando variáveis educacionais, territoriais e socioeconômicas provenientes da camada Gold construída na Fase 2.
+
+> **Nota sobre granularidade**: embora o enunciado mencione predição individual por aluno, os dados disponíveis estão agregados por município/ano/série/rede. Por isso, o problema foi formulado como classificação de risco de cumprimento de meta em nível municipal. Os modelos funcionam como **ferramentas de diagnóstico contemporâneo** — identificam padrões associados ao cumprimento de metas com dados do mesmo ciclo observado. Para predição ex-ante (antes da avaliação anual), seria necessário excluir `media_portugues` e enriquecer a base com indicadores socioeconômicos externos.
 
 Os dados são provenientes da camada Gold construída na Fase 2, com possível enriquecimento via IBGE, Censo Escolar, FUNDEB, PNAD e Atlas do Desenvolvimento Humano.
 
@@ -199,13 +201,13 @@ Foram comparados quatro modelos:
 Na validação aleatória estratificada, o melhor F1 foi do `HistGradientBoostingClassifier`:
 
 ```text
-accuracy=0,9529 | precision=0,8740 | recall=0,8798 | f1=0,8769 | roc_auc=0,9876
+balanced_accuracy=0,9280 | precision=0,8730 | recall=0,8863 | f1=0,8796 | roc_auc=0,9874 | pr_auc=0,9491
 ```
 
 Na validação temporal, treinando em 2023 e testando em 2024, o melhor F1 foi da `LogisticRegression`:
 
 ```text
-accuracy=0,9153 | precision=0,7658 | recall=0,8343 | f1=0,7985 | roc_auc=0,9698
+balanced_accuracy=0,9176 | precision=0,7658 | recall=0,8343 | f1=0,7985 | roc_auc=0,9698 | pr_auc=0,8966
 ```
 
 ### Interpretabilidade

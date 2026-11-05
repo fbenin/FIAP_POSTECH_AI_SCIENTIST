@@ -34,9 +34,13 @@ Esse achado deve ser lido com cautela: `media_portugues` e um indicador do mesmo
 
 ## Resultado Dos Modelos
 
-Na validacao aleatoria, o melhor modelo foi o `HistGradientBoostingClassifier`, com F1 de 0,8769.
+Na validacao aleatoria (80/20 aleatorio estratificado), o melhor modelo foi o `HistGradientBoostingClassifier`, com F1 de 0,8796 e PR-AUC de 0,9491.
 
-Na validacao temporal, a `LogisticRegression` teve o melhor F1, com 0,7985, indicando melhor estabilidade entre 2023 e 2024.
+Na validacao temporal (treino 2023, teste 2024), a `LogisticRegression` teve o melhor F1, com 0,7985, indicando melhor estabilidade para um ano nao visto.
+
+**Por que o melhor modelo muda entre as validacoes?** A base contem registros de cada municipio tanto em 2023 quanto em 2024. No split aleatorio, o mesmo municipio aparece em treino e teste ao mesmo tempo, vazando suas caracteristicas estruturais para a avaliacao. Isso favorece modelos complexos como o HistGradient — que aprende padroes por municipio — e inflaciona as metricas. A validacao temporal e a referencia correta para estimar desempenho em anos futuros. O fato de o HistGradient cair mais que a LogisticRegression na transicao (de F1=0,8796 para 0,7707, vs. 0,8207 para 0,7985) sugere que o modelo complexo estava memorizando padroes especificos de municipio, enquanto o modelo linear aprendeu uma representacao mais generalizavel.
+
+Para uso em producao — onde o objetivo e antecipar resultados de ciclos futuros — a `LogisticRegression` e a escolha mais robusta.
 
 ## Valor Para Gestores Publicos
 

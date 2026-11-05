@@ -55,7 +55,7 @@ Como `media_portugues` pertence ao ciclo educacional analisado, ela deve ser usa
 
 ## Cuidados De Interpretacao
 
-- A interpretabilidade confirma associacoes no nivel agregado da base, nao causalidade individual.
+- A interpretabilidade confirma **associacoes** no nivel agregado da base — nao causalidade. Por exemplo, `sigla_uf_RS` ter coeficiente positivo indica que municipios do RS tendem a atingir a meta nesta base, mas nao que a localizacao geografica cause esse resultado. Fatores como investimento historico, politica educacional estadual ou perfil socioeconomico podem explicar essa associacao.
 - As colunas diretamente derivadas da taxa de alfabetizacao e das metas foram excluidas do modelo principal para evitar data leakage.
-- `media_portugues` pode nao estar disponivel antes da avaliacao anual, entao nao deve ser vendida como variavel plenamente ex-ante.
-- Como ha apenas dois anos disponiveis, a validacao temporal e util, mas ainda limitada para afirmar estabilidade futura.
+- `media_portugues` pode nao estar disponivel antes da avaliacao anual, entao nao deve ser vendida como variavel plenamente ex-ante. O modelo deve ser posicionado como ferramenta de diagnostico contemporaneo, nao de predicao antecipada.
+- Como ha apenas dois anos disponiveis, a validacao temporal e util, mas limitada a um unico periodo (2023->2024). Estrategias de validacao agrupada por municipio (`GroupKFold`) aumentariam a confiabilidade das estimativas de generalizacao.
