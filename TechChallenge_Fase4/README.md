@@ -41,7 +41,7 @@ Filtro por limiar de similaridade  [cosine ≥ 0.30]
        ↓
 Construção do contexto para o LLM
        ↓
-Geração da resposta  [OpenAI gpt-4o-mini]
+Geração da resposta  [Groq / OpenAI]
        ↓
 Resposta fundamentada + evidências rastreáveis
 ```
@@ -55,7 +55,7 @@ Resposta fundamentada + evidências rastreáveis
 | **Embeddings** | `paraphrase-multilingual-MiniLM-L12-v2` | Modelo multilingual (50+ idiomas), suporte nativo a português, 384 dimensões, roda em CPU (~420 MB). Otimizado para similaridade semântica de parágrafos curtos — adequado ao tamanho médio das avaliações Olist. |
 | **Vector Store** | FAISS `IndexFlatIP` | Busca exata (sem aproximação), sem servidor externo, índice é um arquivo em disco. Escala para os ~40 k documentos do dataset sem necessidade de GPU ou infraestrutura adicional. |
 | **Similaridade** | Cosseno via produto interno | Vetores L2-normalizados + IndexFlatIP = similaridade cosseno. Insensível ao comprimento do texto, o que é importante dado que avaliações Olist variam de 2 a 300+ palavras. |
-| **LLM** | OpenAI `gpt-4o-mini` | Custo baixo (~0,0015 USD/1k tokens), suporte robusto a português, instrução following confiável para o estilo "responda apenas com base no contexto". |
+| **LLM** | Groq `openai/gpt-oss-120b` (gratuito) ou OpenAI `gpt-4o-mini` | A API da Groq é compatível com o SDK da OpenAI — o pipeline alterna entre os dois apenas trocando `base_url` e `api_key`, sem mudança no código. Ambos têm bom suporte a português e seguem de forma confiável a instrução "responda apenas com base no contexto". |
 | **Orquestração** | Implementação direta (sem LangChain) | O pipeline é simples o suficiente para ser implementado em ~80 linhas. Evitar abstrações desnecessárias torna o código mais legível para toda a equipe. |
 | **Limiar de evidência** | `min_score = 0.30`, `min_count = 2` | Abaixo de 0.30 o modelo recupera avaliações sem relação semântica com a query. Exigir ≥ 2 documentos evita respostas fundamentadas em um único relato atípico. |
 
@@ -169,7 +169,7 @@ TechChallenge_Fase4/
 ### 1. Pré-requisitos
 
 - Python 3.11+
-- Conta OpenAI com `gpt-4o-mini` disponível
+- Uma chave de LLM: **Groq** (gratuita, recomendada) ou **OpenAI**
 
 ### 2. Instalação
 
@@ -179,9 +179,17 @@ cd TechChallenge_Fase4
 pip install -r requirements.txt
 ```
 
-### 3. Configurar API Key
+### 3. Configurar a chave do LLM
 
-Crie um arquivo `.env` na raiz do projeto (`TechChallenge_Fase4/`):
+Crie um arquivo `.env` na raiz do projeto (`TechChallenge_Fase4/`) com **uma** das chaves abaixo. O pipeline detecta automaticamente qual usar (Groq tem prioridade se ambas existirem).
+
+**Opção gratuita (recomendada) — Groq:** crie uma key em [console.groq.com/keys](https://console.groq.com/keys):
+
+```
+GROQ_API_KEY=gsk_...
+```
+
+**Opção paga — OpenAI:** crie uma key em [platform.openai.com/api-keys](https://platform.openai.com/api-keys):
 
 ```
 OPENAI_API_KEY=sk-...
@@ -251,7 +259,7 @@ jupyter notebook
 |---|---|---|
 | `sentence-transformers` | ≥ 2.7 | Geração de embeddings |
 | `faiss-cpu` | ≥ 1.8 | Índice vetorial |
-| `openai` | ≥ 1.0 | Geração de respostas |
+| `openai` | ≥ 1.0 | Cliente de geração (compatível com Groq e OpenAI) |
 | `pandas` / `numpy` | — | Manipulação dos dados |
 | `python-dotenv` | — | Gerenciamento de credenciais |
 | `matplotlib` / `seaborn` | — | Visualizações EDA |
