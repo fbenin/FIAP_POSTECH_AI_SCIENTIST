@@ -13,7 +13,7 @@ _REPEATED_PUNCT = re.compile(r"([!?,.]){2,}")
 
 
 def _normalize(text: str) -> str:
-    """Lowercase, strip accents, collapse whitespace."""
+    """Normalize unicode (NFKC), collapse whitespace, deduplicate punctuation."""
     text = unicodedata.normalize("NFKC", text)
     text = _WHITESPACE.sub(" ", text).strip()
     text = _REPEATED_PUNCT.sub(r"\1", text)
