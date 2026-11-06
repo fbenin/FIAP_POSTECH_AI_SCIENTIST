@@ -149,6 +149,8 @@ TechChallenge_Fase4/
 │   ├── 01_exploracao.ipynb         # EDA das avaliações → gera documents.json
 │   ├── 02_base_conhecimento.ipynb  # Embeddings + índice FAISS
 │   └── 03_pipeline_rag.ipynb       # Pipeline RAG completo com exemplos
+├── scripts/
+│   └── download_data.py   # Download automático do dataset via Kaggle API
 ├── src/
 │   ├── ingestion/     # Carga e limpeza dos dados Olist
 │   ├── knowledge_base/# Geração de embeddings e construção do índice
@@ -185,16 +187,26 @@ Crie um arquivo `.env` na raiz do projeto (`TechChallenge_Fase4/`):
 OPENAI_API_KEY=sk-...
 ```
 
-### 4. Baixar o dataset
+### 4. Baixar o dataset via Kaggle API
 
-Acesse o Kaggle e extraia os CSVs em `data/raw/`:
+Crie um token de API em [kaggle.com/settings/account](https://www.kaggle.com/settings/account) → **Create New Token** — isso baixa `kaggle.json`. Coloque-o na pasta correta:
 
+```bash
+# Linux / Mac
+mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/kaggle.json
+chmod 600 ~/.kaggle/kaggle.json
+
+# Windows
+# mova para C:\Users\<usuario>\.kaggle\kaggle.json
 ```
-https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data
+
+Depois execute o script de download:
+
+```bash
+python scripts/download_data.py
 ```
 
-Arquivo obrigatório: `olist_order_reviews_dataset.csv`  
-Arquivos opcionais (enriquecimento): `olist_orders_dataset.csv`, `olist_order_items_dataset.csv`, `olist_products_dataset.csv`, `product_category_name_translation.csv`
+Isso baixa e descompacta todos os CSVs do Olist em `data/raw/` automaticamente.
 
 ### 5. Executar os notebooks em ordem
 

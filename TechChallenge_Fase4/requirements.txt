@@ -24,3 +24,4 @@ seaborn
 # Utilitários
 python-dotenv
 tqdm
+kaggle
