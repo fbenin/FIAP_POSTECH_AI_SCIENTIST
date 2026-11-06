@@ -1,0 +1,32 @@
+# Dependencias da Fase 4 - Voice of Customer Intelligence com RAG
+
+# Data manipulation
+pandas
+numpy
+
+# NLP and embeddings
+sentence-transformers
+
+# Vector store
+faiss-cpu
+chromadb
+
+# LLM orchestration
+langchain
+langchain-openai
+langchain-community
+
+# OpenAI (optional - for embeddings and generation)
+openai
+
+# Jupyter
+jupyter
+ipykernel
+
+# Visualization and EDA
+matplotlib
+seaborn
+
+# Utilities
+python-dotenv
+tqdm
