@@ -1,0 +1,8 @@
+langchain
+langchain-community
+langchain-huggingface
+chromadb
+sentence-transformers
+pandas
+python-dotenv
+jupyter
