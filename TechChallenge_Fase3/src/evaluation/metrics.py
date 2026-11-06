@@ -19,6 +19,8 @@ def evaluate_classifier(model: Any, X_test: pd.DataFrame, y_test: pd.Series) -> 
     """Evaluate one fitted classifier with standard binary metrics."""
     from sklearn.metrics import (
         accuracy_score,
+        average_precision_score,
+        balanced_accuracy_score,
         confusion_matrix,
         f1_score,
         precision_score,
@@ -31,6 +33,7 @@ def evaluate_classifier(model: Any, X_test: pd.DataFrame, y_test: pd.Series) -> 
 
     metrics = {
         "accuracy": accuracy_score(y_test, y_pred),
+        "balanced_accuracy": balanced_accuracy_score(y_test, y_pred),
         "precision": precision_score(y_test, y_pred, zero_division=0),
         "recall": recall_score(y_test, y_pred, zero_division=0),
         "f1": f1_score(y_test, y_pred, zero_division=0),
@@ -39,8 +42,10 @@ def evaluate_classifier(model: Any, X_test: pd.DataFrame, y_test: pd.Series) -> 
 
     if scores is not None and y_test.nunique() == 2:
         metrics["roc_auc"] = roc_auc_score(y_test, scores)
+        metrics["pr_auc"] = average_precision_score(y_test, scores)
     else:
         metrics["roc_auc"] = None
+        metrics["pr_auc"] = None
 
     return metrics
 
@@ -65,4 +70,7 @@ def metrics_to_frame(metrics: dict[str, dict[str, Any]]) -> pd.DataFrame:
         row.update({k: v for k, v in values.items() if k != "confusion_matrix"})
         rows.append(row)
 
-    return pd.DataFrame(rows).sort_values(["f1", "recall"], ascending=False)
+    df = pd.DataFrame(rows)
+    ordered_cols = [c for c in ["model", "accuracy", "balanced_accuracy", "precision", "recall", "f1", "roc_auc", "pr_auc"] if c in df.columns]
+    remaining = [c for c in df.columns if c not in ordered_cols]
+    return df[ordered_cols + remaining].sort_values(["f1", "recall"], ascending=False)
