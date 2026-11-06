@@ -187,26 +187,34 @@ Crie um arquivo `.env` na raiz do projeto (`TechChallenge_Fase4/`):
 OPENAI_API_KEY=sk-...
 ```
 
-### 4. Baixar o dataset via Kaggle API
+### 4. Baixar o dataset
 
-Crie um token de API em [kaggle.com/settings/account](https://www.kaggle.com/settings/account) → **Create New Token** — isso baixa `kaggle.json`. Coloque-o na pasta correta:
+Os CSVs do Olist precisam estar em `data/raw/`. Escolha uma das opções:
+
+**Opção A — Download automático via Kaggle API** *(recomendado)*
+
+Crie um token em [kaggle.com/settings/account](https://www.kaggle.com/settings/account) → **Create New Token** — isso baixa `kaggle.json`. Configure-o:
 
 ```bash
 # Linux / Mac
 mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/kaggle.json
 chmod 600 ~/.kaggle/kaggle.json
 
-# Windows
-# mova para C:\Users\<usuario>\.kaggle\kaggle.json
+# Windows: mova para C:\Users\<usuario>\.kaggle\kaggle.json
 ```
 
-Depois execute o script de download:
+Depois execute:
 
 ```bash
 python scripts/download_data.py
 ```
 
-Isso baixa e descompacta todos os CSVs do Olist em `data/raw/` automaticamente.
+**Opção B — Download manual**
+
+Acesse [kaggle.com/datasets/olistbr/brazilian-ecommerce](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data), clique em **Download** e extraia os CSVs em `data/raw/`.
+
+Arquivo obrigatório: `olist_order_reviews_dataset.csv`  
+Opcionais (enriquecimento de metadados): `olist_orders_dataset.csv`, `olist_order_items_dataset.csv`, `olist_products_dataset.csv`, `product_category_name_translation.csv`
 
 ### 5. Executar os notebooks em ordem
 
