@@ -18,15 +18,18 @@ def _normalize_text(raw: str) -> str:
     return re.sub(r"[\x00-\x1f]", " ", text)
 
 
-def load_reviews(path=DEFAULT_CSV) -> list[dict]:
+def load_reviews(path=DEFAULT_CSV, deduplicate: bool = True) -> list[dict]:
     df = pd.read_csv(path)
     df = df[df["review_comment_message"].notna()]
     df = df[df["review_comment_message"].str.strip() != ""]
+    df["_text_norm"] = df["review_comment_message"].apply(_normalize_text)
+    if deduplicate:
+        df = df.drop_duplicates(subset="_text_norm", keep="first")
     records = []
     for _, row in df.iterrows():
         records.append({
             "id": row["review_id"],
-            "text": _normalize_text(row["review_comment_message"]),
+            "text": row["_text_norm"],
             "score": int(row["review_score"]),
             "date": str(row["review_creation_date"]),
         })
