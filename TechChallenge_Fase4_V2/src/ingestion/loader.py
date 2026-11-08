@@ -29,6 +29,7 @@ def load_reviews(path=DEFAULT_CSV, deduplicate: bool = True) -> list[dict]:
     for _, row in df.iterrows():
         records.append({
             "id": row["review_id"],
+            "title": str(row.get("review_comment_title") or ""),
             "text": row["_text_norm"],
             "score": int(row["review_score"]),
             "date": str(row["review_creation_date"]),

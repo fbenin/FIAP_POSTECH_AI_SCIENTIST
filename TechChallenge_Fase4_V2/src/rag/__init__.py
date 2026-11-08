@@ -1,8 +1,7 @@
 """RAG chain — build and query the retrieval-augmented generation pipeline."""
 
-from .chain import ask, build_chain
+from .chain import ask
 
 __all__ = [
     "ask",
-    "build_chain",
 ]
