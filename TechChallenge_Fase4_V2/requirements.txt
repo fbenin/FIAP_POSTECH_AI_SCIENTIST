@@ -1,8 +1,12 @@
 langchain
 langchain-community
 langchain-huggingface
+langchain-groq
+langchain-openai
 chromadb
 sentence-transformers
 pandas
 python-dotenv
 jupyter
+fastapi
+uvicorn[standard]
