@@ -8,6 +8,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_store_cache: object = None
+_llm_cache: object = None
+
+
+def _get_cached_store():
+    global _store_cache
+    if _store_cache is None:
+        from src.retrieval import get_store
+        _store_cache = get_store()
+    return _store_cache
+
+
+def _get_cached_llm():
+    global _llm_cache
+    if _llm_cache is None:
+        _llm_cache = get_llm()
+    return _llm_cache
+
 
 def get_llm():
     provider = os.getenv("LLM_PROVIDER", "")
@@ -19,7 +37,7 @@ def get_llm():
         from langchain_groq import ChatGroq
 
         return ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
             api_key=os.getenv("GROQ_API_KEY"),
         )
     if provider == "together":
@@ -42,41 +60,20 @@ def get_llm():
 def format_context(docs: list[dict]) -> str:
     parts = []
     for i, doc in enumerate(docs, 1):
-        parts.append(f"[{i}] Score: {doc['score']}\nTexto: {doc['text']}")
+        title = doc.get("title", "")
+        title_line = f"Título: {title}\n" if title else ""
+        parts.append(f"[{i}] Score: {doc['score']}\n{title_line}Texto: {doc['text']}")
     return "\n\n".join(parts)
-
-
-def build_chain(store=None):
-    from langchain_core.output_parsers import StrOutputParser
-
-    from src.rag.prompts import build_prompt
-    from src.retrieval import get_store
-
-    if store is None:
-        store = get_store()
-
-    prompt = build_prompt()
-    llm = get_llm()
-    parser = StrOutputParser()
-
-    def _run(inputs: dict) -> str:
-        question = inputs["question"]
-        docs = store.search_above_threshold(question)
-        context = format_context(docs)
-        messages = prompt.format_messages(context=context, question=question)
-        return parser.parse(llm.invoke(messages).content)
-
-    return _run
 
 
 def ask(question: str, show_sources: bool = True) -> dict:
     from langchain_core.output_parsers import StrOutputParser
 
     from src.rag.prompts import build_prompt
-    from src.retrieval import get_store
 
-    store = get_store()
-    docs = store.search_above_threshold(question)
+    threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.75"))
+    store = _get_cached_store()
+    docs = store.search_above_threshold(question, threshold=threshold)
     if not docs:
         return {
             "answer": "Não encontrei evidências suficientes nos reviews disponíveis.",
@@ -84,7 +81,7 @@ def ask(question: str, show_sources: bool = True) -> dict:
         }
     context = format_context(docs)
     prompt = build_prompt()
-    llm = get_llm()
+    llm = _get_cached_llm()
     messages = prompt.format_messages(context=context, question=question)
     answer = StrOutputParser().parse(llm.invoke(messages).content)
     return {"answer": answer, "sources": docs}

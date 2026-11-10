@@ -8,7 +8,7 @@ class ReviewStore:
         self._vectorstore = vectorstore
 
     def search(self, query: str, k: int = 5) -> list[dict]:
-        # similarity_search_with_score retorna (doc, cosine_distance)
+        # similarity_search_with_score retorna (doc, cosine_distance) em [0, 2]
         # onde 0 = idêntico e 2 = oposto. Convertemos para similaridade [0, 1].
         results = self._vectorstore.similarity_search_with_score(query, k=k)
         docs = []
