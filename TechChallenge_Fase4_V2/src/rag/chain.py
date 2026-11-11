@@ -11,6 +11,13 @@ load_dotenv()
 _store_cache: object = None
 _llm_cache: object = None
 
+_FALLBACK = (
+    "Não foram encontradas avaliações suficientemente relevantes na base de conhecimento "
+    "para responder a esta pergunta com evidências confiáveis. "
+    "Tente reformular ou explore temas presentes nas avaliações: "
+    "entrega, qualidade dos produtos, atendimento ao cliente, experiência de compra."
+)
+
 
 def _get_cached_store():
     global _store_cache
@@ -31,22 +38,18 @@ def get_llm():
     provider = os.getenv("LLM_PROVIDER", "")
     if provider == "openai":
         from langchain_openai import ChatOpenAI
-
         return ChatOpenAI(model="gpt-4o-mini")
     if provider == "groq":
         from langchain_groq import ChatGroq
-
         return ChatGroq(
-            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+            model=os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile"),
             api_key=os.getenv("GROQ_API_KEY"),
         )
     if provider == "together":
         from langchain_together import ChatTogether
-
         return ChatTogether()
     if provider == "ollama":
         from langchain_community.chat_models import ChatOllama
-
         return ChatOllama(
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             model="llama3",
@@ -60,10 +63,20 @@ def get_llm():
 def format_context(docs: list[dict]) -> str:
     parts = []
     for i, doc in enumerate(docs, 1):
-        title = doc.get("title", "")
-        title_line = f"Título: {title}\n" if title else ""
-        parts.append(f"[{i}] Score: {doc['score']}\n{title_line}Texto: {doc['text']}")
-    return "\n\n".join(parts)
+        lines = [f"[Avaliação {i} | Nota: {doc['score']}/5 | Similaridade: {doc['similarity']:.2f}]"]
+        if doc.get("product_category"):
+            lines.append(f"Categoria: {doc['product_category']}")
+        if doc.get("delivery_delta_days") is not None:
+            delta = int(doc["delivery_delta_days"])
+            if delta < 0:
+                lines.append(f"Entrega: {abs(delta)} dias antes do prazo")
+            elif delta > 0:
+                lines.append(f"Entrega: {delta} dias após o prazo")
+            else:
+                lines.append("Entrega: no prazo")
+        lines.append(f"Texto: {doc['text']}")
+        parts.append("\n".join(lines))
+    return "\n\n---\n\n".join(parts)
 
 
 def ask(question: str, show_sources: bool = True) -> dict:
@@ -72,19 +85,17 @@ def ask(question: str, show_sources: bool = True) -> dict:
     from src.rag.prompts import build_prompt
 
     threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.75"))
+    k = int(os.getenv("RETRIEVAL_TOP_K", "5"))
     store = _get_cached_store()
-    docs = store.search_above_threshold(question, threshold=threshold)
+    docs = store.search_above_threshold(question, k=k, threshold=threshold)
     if not docs:
-        return {
-            "answer": "Não encontrei evidências suficientes nos reviews disponíveis.",
-            "sources": [],
-        }
+        return {"answer": _FALLBACK, "sources": [], "has_evidence": False}
     context = format_context(docs)
     prompt = build_prompt()
     llm = _get_cached_llm()
     messages = prompt.format_messages(context=context, question=question)
     answer = StrOutputParser().parse(llm.invoke(messages).content)
-    return {"answer": answer, "sources": docs}
+    return {"answer": answer, "sources": docs, "has_evidence": True}
 
 
 if __name__ == "__main__":

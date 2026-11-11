@@ -29,13 +29,18 @@ def build(reviews: list[dict]):
     from langchain_chroma import Chroma
     from langchain_core.documents import Document
 
-    docs = [
-        Document(
-            page_content=r["text"],
-            metadata={"id": r["id"], "score": r["score"], "date": r["date"]},
-        )
-        for r in reviews
-    ]
+    docs = []
+    for r in reviews:
+        metadata = {
+            "id": r["id"],
+            "score": r["score"],
+            "date": r["date"],
+        }
+        for key in ("product_category", "delivery_delta_days", "purchase_year", "purchase_month"):
+            if key in r:
+                metadata[key] = r[key]
+        docs.append(Document(page_content=r["text"], metadata=metadata))
+
     print(f"Indexing {len(docs)} documents...")
     vectorstore = Chroma.from_documents(
         docs,
