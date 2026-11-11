@@ -96,8 +96,8 @@ O corpus bruto contém 14,5% de avaliações duplicadas exatas após normalizaç
 aparecia 472×, *"bom"* 342×). Sem deduplicação, os 5 documentos mais próximos de qualquer query
 frequente seriam cópias idênticas, degradando a cobertura e a qualidade da resposta.
 
-A flag `deduplicate=True` remove duplicatas após a normalização, reduzindo o corpus de ~41k para
-~37k documentos únicos.
+A flag `deduplicate=True` remove duplicatas após a normalização, reduzindo o corpus de 40.950 para
+35.006 documentos únicos (redução de 14,5%).
 
 ### 3.6 Criação dos embeddings
 
@@ -105,7 +105,7 @@ A flag `deduplicate=True` remove duplicatas após a normalização, reduzindo o 
 
 Escolhido por:
 - Cobertura de 50+ idiomas, incluindo português
-- Leve (117M parâmetros) — indexação de 37k documentos em ~10 minutos em CPU
+- Leve (117M parâmetros) — indexação de 35 mil documentos em ~10 minutos em CPU
 - Validado experimentalmente: recupera reviews relevantes para queries em inglês (top_sim=0.822)
   e espanhol (top_sim=0.921) sem tradução prévia
 
@@ -115,7 +115,7 @@ Escolhido por:
 - Persistência nativa em disco (sem servidor externo)
 - Campos de metadata armazenados junto ao documento
 - Integração nativa com LangChain
-- Busca aproximada HNSW eficiente para o tamanho do corpus (~37k documentos)
+- Busca aproximada HNSW eficiente para o tamanho do corpus (~35 mil documentos)
 
 ---
 
@@ -147,9 +147,12 @@ invocar o LLM, evitando alucinações em perguntas fora do domínio.
 |-----------|--------------|-------------------|
 | 0.50 | 5 | 5 |
 | 0.65 | 5 | 5 |
-| **0.75** | **5** | **0** ← escolhido |
+| **0.75** | **5** | **3** ← escolhido |
+| 0.80 | 5 | 1 |
 | 0.85 | 3 | 0 |
-| 0.90 | 0 | 0 |
+| 0.90 | 1 | 0 |
+
+Threshold 0.75 mantém cobertura completa para queries in-scope e reduz significativamente as out-of-scope. Thresholds ≥ 0.85 eliminam o ruído mas passam a descartar consultas legítimas. O threshold não elimina completamente queries semanticamente ambíguas (e.g., "time de futebol do Brasil" retorna 3 documentos a 0.75 por sobreposição com o contexto brasileiro — documentado como limitação).
 
 ### 4.4 Construção do contexto
 
@@ -231,7 +234,7 @@ cai apenas para ~0.828, indicando alta densidade semântica no corpus.
 ## 7. Conclusão
 
 O sistema implementa com sucesso uma arquitetura RAG sobre avaliações de clientes de e-commerce,
-permitindo exploração semântica de ~37k comentários em linguagem natural. Os mecanismos de
+permitindo exploração semântica de ~35 mil comentários em linguagem natural. Os mecanismos de
 fallback por threshold e prompt constrained garantem que as respostas sejam sempre fundamentadas
 em evidências reais, evitando alucinações. O enriquecimento opcional com metadados de entrega e
 categoria eleva a qualidade analítica das respostas para perguntas contextuais.

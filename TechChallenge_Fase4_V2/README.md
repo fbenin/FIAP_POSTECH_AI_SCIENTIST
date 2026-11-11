@@ -287,7 +287,7 @@ na entrega e divergência entre descrição e produto recebido.
 ### Deduplicação do corpus
 O dataset bruto contém 14,5% de avaliações duplicadas (ex: *"muito bom"* aparecia 472×). Sem
 deduplicação, qualquer pergunta frequente retornaria 5 cópias idênticas do mesmo texto. A flag
-`deduplicate=True` em `load_reviews()` reduz o corpus de ~41k para ~37k documentos únicos, 
+`deduplicate=True` em `load_reviews()` reduz o corpus de 40.950 para 35.006 documentos únicos
 mantendo a cobertura semântica sem redundância.
 
 ### Concatenação título + mensagem
@@ -313,7 +313,7 @@ escopo (ex: *"time de futebol"*) passem pelo filtro e gerem respostas sem evidê
 
 ### ChromaDB com HNSW cosine
 Persistência nativa (sem servidor separado), suporte a metadados filtráveis, e integração com
-LangChain. Para o tamanho do corpus (~37k documentos) a busca aproximada HNSW é suficientemente
+LangChain. Para o tamanho do corpus (~35 mil documentos) a busca aproximada HNSW é suficientemente
 precisa e muito mais rápida que busca exata.
 
 ### Suporte a múltiplos LLM providers

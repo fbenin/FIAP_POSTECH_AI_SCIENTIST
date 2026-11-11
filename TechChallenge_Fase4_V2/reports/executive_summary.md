@@ -38,7 +38,7 @@ mais relevantes e gera respostas estruturadas citando as evidências reais que a
 ```
 Pergunta do gestor
       ↓
-Sistema encontra os comentários mais semanticamente relevantes (~37k avaliações indexadas)
+Sistema encontra os comentários mais semanticamente relevantes (~35 mil avaliações indexadas)
       ↓
 Filtra por relevância mínima (evita respostas sem fundamento)
       ↓
@@ -56,7 +56,7 @@ em vez de fabricar uma resposta — um requisito crítico para uso em contexto d
 
 O sistema foi desenvolvido e validado sobre o **Brazilian E-Commerce Public Dataset by Olist**
 (Kaggle), com ~115 mil pedidos realizados entre 2016 e 2018. Após filtragem e deduplicação,
-foram indexadas **~37 mil avaliações únicas** com texto.
+foram indexadas **~35 mil avaliações únicas** com texto (35.006 após filtragem e deduplicação de 40.950 com texto).
 
 Cada avaliação pode ser enriquecida com:
 - Categoria do produto comprado
@@ -69,9 +69,9 @@ Cada avaliação pode ser enriquecida com:
 
 | Métrica | Resultado |
 |---------|-----------|
-| Corpus indexado | ~37 mil avaliações únicas |
-| Threshold de relevância | 0.75 (validado experimentalmente) |
-| Perguntas in-scope com evidência | 100% retornaram documentos relevantes |
+| Corpus indexado | ~35 mil avaliações únicas (35.006) |
+| Threshold de relevância | 0.75 (validado via EXP 2 — ver `notebooks/02_experimentos_rag.ipynb`) |
+| Perguntas in-scope com evidência | 100% retornaram documentos relevantes (EXP 1, n=4 perguntas representativas) |
 | Perguntas fora de escopo | Fallback ativado corretamente |
 | Suporte multilingual | Português, inglês e espanhol funcionam sem tradução |
 
