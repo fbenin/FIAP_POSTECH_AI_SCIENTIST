@@ -89,6 +89,7 @@ TechChallenge_Fase4_V2/
 ├── data/
 │   ├── README.md             # Instruções de download do dataset
 │   └── raw/                  # CSVs do Kaggle (gitignored)
+├── images/                   # Gráficos gerados pelo EDA
 ├── scripts/
 │   └── download_data.py      # Download automático do dataset via Kaggle API
 ├── notebooks/

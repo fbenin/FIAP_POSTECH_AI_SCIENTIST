@@ -43,8 +43,7 @@ def check_kaggle():
 def download():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    already = [f.name for f in OUTPUT_DIR.glob("*.csv")]
-    missing = [f for f in REQUIRED_FILES if f not in already]
+    missing = [f for f in REQUIRED_FILES if not (OUTPUT_DIR / f).exists()]
 
     if not missing:
         print(f"Dataset já presente em {OUTPUT_DIR}")
