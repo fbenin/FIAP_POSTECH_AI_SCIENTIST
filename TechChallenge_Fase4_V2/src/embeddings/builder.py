@@ -71,5 +71,5 @@ def load_existing():
 if __name__ == "__main__":
     from src.ingestion import load_reviews
 
-    reviews = load_reviews()
+    reviews = load_reviews(enrich=True)
     build(reviews)

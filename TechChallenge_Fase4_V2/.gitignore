@@ -1,24 +1,6 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-env/
-venv/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Data (large files, not committed)
-data/raw/
-data/chroma_db/
-*.csv
-
-# Secrets
 .env
-
-# Temporary / local plans
-PLANO_EXECUCAO*.md
-
-# OS
-.DS_Store
+.venv/
+__pycache__/
+*.pyc
+data/chroma_db/
+data/raw

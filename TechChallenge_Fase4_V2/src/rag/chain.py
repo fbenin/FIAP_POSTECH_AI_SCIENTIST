@@ -42,7 +42,7 @@ def get_llm():
     if provider == "groq":
         from langchain_groq import ChatGroq
         return ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile"),
+            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
             api_key=os.getenv("GROQ_API_KEY"),
         )
     if provider == "together":
