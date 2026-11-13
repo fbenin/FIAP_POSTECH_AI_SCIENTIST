@@ -2,32 +2,51 @@
 
 ## Dataset
 
-Este projeto utiliza o **Brazilian E-Commerce Public Dataset by Olist**, disponível no Kaggle. O dataset contém aproximadamente 115 mil avaliações de clientes sobre pedidos de e-commerce.
+Este projeto utiliza o **Brazilian E-Commerce Public Dataset by Olist**, disponível no Kaggle.
+O dataset contém aproximadamente 115 mil avaliações de clientes sobre pedidos de e-commerce
+realizados entre 2016 e 2018.
 
 ## Download
 
-1. Acesse [Kaggle - Brazilian E-Commerce Public Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
-2. Faça o download do arquivo `olist_order_reviews_dataset.csv`
-3. Crie a pasta `data/raw/` se ela não existir
-4. Coloque o arquivo CSV em `data/raw/olist_order_reviews_dataset.csv`
+1. Acesse [Kaggle — Brazilian E-Commerce Public Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+2. Baixe o arquivo ZIP e extraia em `data/raw/`
 
 ```bash
 mkdir -p data/raw/
-# Coloque o arquivo CSV aqui
+# Coloque os arquivos CSV aqui
 ```
 
-## Colunas Esperadas
+## Arquivo obrigatório
 
-O arquivo `olist_order_reviews_dataset.csv` deve conter as seguintes colunas:
+| Arquivo | Uso |
+|---------|-----|
+| `olist_order_reviews_dataset.csv` | Textos e notas das avaliações — base do índice vetorial |
 
-- `review_id`: Identificador único da avaliação
-- `order_id`: ID do pedido relacionado
-- `review_score`: Pontuação de 1 a 5
-- `review_comment_title`: Título do comentário (opcional, pode estar vazio)
-- `review_comment_message`: Texto completo da avaliação
-- `review_creation_date`: Data e hora de criação da avaliação
+## Arquivos opcionais (enriquecimento de metadados)
 
-## Estrutura Local
+Quando presentes em `data/raw/`, o `load_reviews()` os utiliza automaticamente
+para enriquecer cada avaliação com categoria de produto e prazo de entrega.
+Esses metadados são armazenados no ChromaDB e aparecerão nas respostas da API.
 
-- `data/raw/` — Contém o CSV do Kaggle (gitignored)
-- `data/chroma_db/` — Índice de vetores gerado pelo builder (gitignored)
+| Arquivo | Metadados adicionados |
+|---------|----------------------|
+| `olist_orders_dataset.csv` | `purchase_year`, `purchase_month`, `delivery_delta_days` |
+| `olist_order_items_dataset.csv` | Ponte entre pedidos e produtos |
+| `olist_products_dataset.csv` | Categoria do produto em português |
+| `product_category_name_translation.csv` | Categoria do produto em inglês |
+
+`delivery_delta_days` é calculado como `order_delivered_customer_date - order_estimated_delivery_date`:
+valores negativos indicam entrega antes do prazo, positivos indicam atraso.
+
+## Estrutura local
+
+```
+data/
+├── raw/                     # CSVs do Kaggle (gitignored)
+│   ├── olist_order_reviews_dataset.csv        (obrigatório)
+│   ├── olist_orders_dataset.csv               (opcional)
+│   ├── olist_order_items_dataset.csv          (opcional)
+│   ├── olist_products_dataset.csv             (opcional)
+│   └── product_category_name_translation.csv  (opcional)
+└── chroma_db/               # Índice vetorial gerado (gitignored)
+```
