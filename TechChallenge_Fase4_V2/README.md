@@ -90,6 +90,8 @@ TechChallenge_Fase4_V2/
 │   ├── README.md             # Instruções de download do dataset
 │   └── raw/                  # CSVs do Kaggle (gitignored)
 ├── images/                   # Gráficos gerados pelo EDA
+├── scripts/
+│   └── download_data.py      # Download automático do dataset via Kaggle API
 ├── notebooks/
 │   ├── 01_eda_reviews.ipynb  # Exploração e análise dos dados
 │   └── 02_experimentos_rag.ipynb  # Testes de threshold, top_k e edge cases
@@ -137,7 +139,7 @@ cp .env.example .env
 | `LLM_PROVIDER` | Provider LLM: `openai`, `groq`, `together`, `ollama` | — (obrigatório) |
 | `OPENAI_API_KEY` | Chave OpenAI (se `LLM_PROVIDER=openai`) | — |
 | `GROQ_API_KEY` | Chave Groq (se `LLM_PROVIDER=groq`) | — |
-| `GROQ_MODEL` | Modelo Groq | `llama-3.1-70b-versatile` |
+| `GROQ_MODEL` | Modelo Groq | `openai/gpt-oss-20b` |
 | `EMBEDDING_MODEL` | Modelo sentence-transformers | `paraphrase-multilingual-MiniLM-L12-v2` |
 | `CHROMA_PERSIST_DIR` | Diretório do índice ChromaDB | `data/chroma_db` |
 | `RETRIEVAL_TOP_K` | Número de documentos recuperados | `5` |
@@ -147,7 +149,25 @@ cp .env.example .env
 
 ## Construir o índice vetorial
 
-Baixe os CSVs do Kaggle para `data/raw/` (veja `data/README.md`), depois:
+### 1. Baixar o dataset
+
+**Opção A — Download automático via Kaggle API** *(recomendado)*
+
+Crie um token em [kaggle.com/settings/account](https://www.kaggle.com/settings/account) → **Create New Token** → salve em `~/.kaggle/kaggle.json`:
+
+```bash
+chmod 600 ~/.kaggle/kaggle.json
+python scripts/download_data.py
+```
+
+**Opção B — Download manual**
+
+Acesse [kaggle.com/datasets/olistbr/brazilian-ecommerce](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data) e extraia os CSVs em `data/raw/`.
+
+Arquivo obrigatório: `olist_order_reviews_dataset.csv`
+Opcionais (enriquecimento): `olist_orders_dataset.csv`, `olist_order_items_dataset.csv`, `olist_products_dataset.csv`, `product_category_name_translation.csv`
+
+### 2. Indexar
 
 ```bash
 python -m src.embeddings.builder
@@ -155,6 +175,47 @@ python -m src.embeddings.builder
 
 O comando lê os reviews, aplica normalização, faz join com metadados opcionais, gera embeddings
 com o modelo multilingual (sem API — roda localmente) e persiste o índice em `data/chroma_db/`.
+
+---
+
+## Preparação da Base de Conhecimento
+
+### Seleção dos dados
+
+Fonte: `olist_order_reviews_dataset.csv`. Os campos `review_comment_title` e `review_comment_message`
+contêm os textos das avaliações. Avaliações sem qualquer texto (apenas nota numérica) são descartadas.
+
+### Limpeza e normalização
+
+1. **Normalização Unicode (NFKC):** uniformiza caracteres especiais — comum em textos digitados via mobile.
+2. **Colapso de espaços em branco:** remove múltiplos espaços, tabs e quebras de linha internas.
+3. **Deduplicação de pontuação:** `!!!` → `!`, `...` → `.`
+4. **Concatenação título + mensagem:** quando ambos existem, o documento final é `"<título>. <mensagem>"`. Quando só um está presente, usa-se o disponível.
+
+### Tratamento de valores ausentes
+
+Campos ausentes ou NaN são detectados com `pd.isna()` e convertidos para string vazia antes de qualquer
+operação — evita que `float('nan')` seja tratado como string `"nan"` no texto final.
+
+### Estrutura de cada documento indexado
+
+```json
+{
+  "text": "Produto chegou bem embalado e dentro do prazo.",
+  "metadata": {
+    "id": "e64fb393e7b32834bb789ff8bb30750e",
+    "score": 5,
+    "date": "2018-03-15 00:00:00",
+    "product_category": "housewares",
+    "delivery_delta_days": -2,
+    "purchase_year": 2018,
+    "purchase_month": 3
+  }
+}
+```
+
+Os campos de enriquecimento (`product_category`, `delivery_delta_days`, `purchase_year`, `purchase_month`)
+são opcionais — presentes apenas quando os CSVs adicionais estão em `data/raw/`.
 
 ---
 
