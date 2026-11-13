@@ -1,0 +1,36 @@
+# Dados brutos (nao versionar - arquivos grandes)
+data/raw/
+data/processed/
+
+# Vector indexes
+*.index
+*.faiss
+*.pkl
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Variaveis de ambiente (API keys)
+.env
+*.env
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
